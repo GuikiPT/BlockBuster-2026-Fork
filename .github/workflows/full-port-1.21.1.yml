@@ -24,6 +24,7 @@ jobs:
           git apply --check /tmp/port.patch
           git apply /tmp/port.patch
           python .github/fix_remaining_main.py
+          python .github/fix_fake_connection.py
       - name: Build migrated source
         run: |
           chmod +x gradlew
