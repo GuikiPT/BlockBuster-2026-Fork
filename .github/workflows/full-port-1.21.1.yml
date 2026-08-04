@@ -30,6 +30,7 @@ jobs:
           python .github/fix_client_chain_semicolons.py
           python .github/fix_client_fluent_chains.py
           python .github/fix_client_batch2.py
+          python .github/fix_client_batch3.py
       - name: Build migrated source
         run: |
           chmod +x gradlew
