@@ -23,6 +23,7 @@
 		"PlayerEntityRecordingMixin",
 		"PlayerInventoryPickupMixin",
 		"ServerPlayerEntityCameraMixin",
+		"ServerPlayerEntityLanguageMixin",
 		"ServerPlayerEntityMixin",
 		"ServerWorldMixin",
 		"WorldMixin"

@@ -1,9 +1,5 @@
 package mchorse.blockbuster.common.block;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.function.IntFunction;
-
 import mchorse.blockbuster.Blockbuster;
 import mchorse.blockbuster.common.GuiHandler;
 import mchorse.blockbuster.common.tileentity.TileEntityModel;
@@ -11,11 +7,11 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.FluidFillable;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.block.FluidFillable;
 import net.minecraft.client.item.TooltipContext;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -39,9 +35,11 @@ import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
-import net.minecraft.world.WorldView;
-
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.function.IntFunction;
 
 /**
  * Model block (roadmap P95).
@@ -181,7 +179,7 @@ public class BlockModel extends Block implements BlockEntityProvider, FluidFilla
     /* Pick-block + drops */
 
     @Override
-    public ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state)
+    public ItemStack getPickStack(BlockView world, BlockPos pos, BlockState state)
     {
         ItemStack stack = getItemStack(state);
 
@@ -360,7 +358,7 @@ public class BlockModel extends Block implements BlockEntityProvider, FluidFilla
      * it, exactly as before.</p>
      */
     @Override
-    public boolean canFillWithFluid(@Nullable PlayerEntity player, BlockView world, BlockPos pos, BlockState state, Fluid fluid)
+    public boolean canFillWithFluid(BlockView world, BlockPos pos, BlockState state, Fluid fluid)
     {
         return false;
     }

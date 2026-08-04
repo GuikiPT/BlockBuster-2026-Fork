@@ -49,7 +49,7 @@ public class GuiConfirmationScreen extends GuiBase
     public void render(DrawContext drawContext, int mouseX, int mouseY, float partialTicks)
     {
         /* Legacy drawDefaultBackground() */
-        this.renderBackground(drawContext, mouseX, mouseY, partialTicks);
+        this.renderBackground(drawContext);
 
         super.render(drawContext, mouseX, mouseY, partialTicks);
     }

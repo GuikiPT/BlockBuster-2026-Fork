@@ -19,7 +19,6 @@ import mchorse.mclib.utils.Patterns;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtTagSizeTracker;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.World;
@@ -423,7 +422,7 @@ public class SceneManager
             return null;
         }
 
-        NbtCompound compound = NbtIo.readCompressed(new FileInputStream(file), NbtTagSizeTracker.ofUnlimitedBytes());
+        NbtCompound compound = NbtIo.readCompressed(new FileInputStream(file));
         Scene scene = new Scene();
 
         scene.setId(filename);
@@ -510,7 +509,7 @@ public class SceneManager
 
         try (FileInputStream stream = new FileInputStream(file))
         {
-            NbtCompound previous = NbtIo.readCompressed(stream, NbtTagSizeTracker.ofUnlimitedBytes());
+            NbtCompound previous = NbtIo.readCompressed(stream);
             int had = previous.getList("Actors", NbtElement.COMPOUND_TYPE).size();
 
             if (had > 0)

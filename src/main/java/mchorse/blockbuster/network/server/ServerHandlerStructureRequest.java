@@ -15,7 +15,6 @@ import mchorse.blockbuster.network.common.structure.PacketStructureRequest;
 import mchorse.mclib.network.ServerMessageHandler;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtTagSizeTracker;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.structure.StructureTemplate;
@@ -283,7 +282,7 @@ public class ServerHandlerStructureRequest extends ServerMessageHandler<PacketSt
         {
             try
             {
-                return NbtIo.readCompressed(file.toPath(), NbtTagSizeTracker.ofUnlimitedBytes());
+                return NbtIo.readCompressed(file);
             }
             catch (Exception e)
             {

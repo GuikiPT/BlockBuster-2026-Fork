@@ -23,7 +23,6 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtList;
-import net.minecraft.nbt.NbtTagSizeTracker;
 import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.Nullable;
 
@@ -1240,7 +1239,7 @@ public class Record
 
         try (FileInputStream stream = new FileInputStream(file))
         {
-            NbtCompound compound = NbtIo.readCompressed(stream, NbtTagSizeTracker.ofUnlimitedBytes());
+            NbtCompound compound = NbtIo.readCompressed(stream);
 
             if (!compound.contains("Frames", NbtElement.LIST_TYPE))
             {
@@ -1289,7 +1288,7 @@ public class Record
      */
     public void load(File file) throws IOException
     {
-        this.load(NbtIo.readCompressed(new FileInputStream(file), NbtTagSizeTracker.ofUnlimitedBytes()));
+        this.load(NbtIo.readCompressed(new FileInputStream(file)));
     }
 
     public void load(NbtCompound compound)

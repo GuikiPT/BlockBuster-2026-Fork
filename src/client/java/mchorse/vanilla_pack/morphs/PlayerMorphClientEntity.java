@@ -5,7 +5,6 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.client.network.OtherClientPlayerEntity;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.render.entity.PlayerModelPart;
-import net.minecraft.client.util.SkinTextures;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.nbt.NbtCompound;
 
@@ -17,13 +16,16 @@ import net.minecraft.nbt.NbtCompound;
  * in the player list, is not tracked by the network handler, and would
  * otherwise fall back to the default skin.</p>
  *
- * <p><b>Legacy → 1.20.4.</b> 1.12.2 answered the renderer through three
+ * <p><b>Legacy → 1.20.1.</b> 1.12.2 answered the renderer through three
  * separate hooks — {@code getSkinType()}, {@code getLocationSkin()},
  * {@code getLocationCape()} — plus {@code hasPlayerInfo()} as the cape gate.
- * 1.20.2 collapsed all four into the single {@link SkinTextures} record
- * returned by {@link #getSkinTextures()}, so the three overrides become one
- * and {@code hasPlayerInfo} disappears (the cape layer now gates on
- * {@code capeTexture() != null}, which the record already carries). The
+ * 1.20.1 keeps that same four-way shape, and every one of those methods on
+ * {@link net.minecraft.client.network.AbstractClientPlayerEntity} reads through
+ * a single {@code getPlayerListEntry()} lookup, so overriding <i>that</i>
+ * answers all four at once — legacy's {@code hasPlayerInfo}/{@code getPlayerInfo}
+ * seam exactly. Only {@link #getModel()} needs its own override, for the
+ * {@code skinType} arm-model force. (1.20.2 later collapsed the four into one
+ * {@code SkinTextures} record; that consolidation does not exist here.) The
  * lazily-built {@link PlayerListEntry} is the direct stand-in for legacy's
  * lazily-built {@code NetworkPlayerInfo}: its texture supplier is memoized and
  * only touches the skin service on the first call, so constructing the morph
@@ -77,32 +79,37 @@ public class PlayerMorphClientEntity extends OtherClientPlayerEntity
     }
 
     /**
-     * Get this player's skin, cape and arm model.
+     * The one seam every skin/cape/elytra/arm-model lookup on
+     * {@code AbstractClientPlayerEntity} goes through. Vanilla resolves it out
+     * of the client's player list, where this morph does not appear (which is
+     * why it would otherwise render with the default skin); pointing it at the
+     * morph's own entry is legacy's {@code hasPlayerInfo}/{@code getPlayerInfo}
+     * override.
+     */
+    @Override
+    protected PlayerListEntry getPlayerListEntry()
+    {
+        this.initiateNetworkInfo();
+
+        return this.info;
+    }
+
+    /**
+     * Get this player's arm model.
      *
      * <p>The stored {@code SkinType} overrides only the arm model, exactly as
      * legacy's {@code getSkinType()} did — {@code "alex"} → slim, anything else
      * non-empty → default/wide, empty → whatever the profile resolved to.</p>
      */
     @Override
-    public SkinTextures getSkinTextures()
+    public String getModel()
     {
-        this.initiateNetworkInfo();
-
-        SkinTextures textures = this.info.getSkinTextures();
-
         if (this.skinType.isEmpty())
         {
-            return textures;
+            return super.getModel();
         }
 
-        SkinTextures.Model model = this.skinType.equals("alex") ? SkinTextures.Model.SLIM : SkinTextures.Model.WIDE;
-
-        if (model == textures.model())
-        {
-            return textures;
-        }
-
-        return new SkinTextures(textures.texture(), textures.textureUrl(), textures.capeTexture(), textures.elytraTexture(), model, textures.secure());
+        return this.skinType.equals("alex") ? "slim" : "default";
     }
 
     /**

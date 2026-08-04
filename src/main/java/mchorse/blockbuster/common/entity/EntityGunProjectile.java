@@ -613,7 +613,7 @@ public class EntityGunProjectile extends ProjectileEntity
      * 0 → server corrections ignored entirely); never correct while stuck.
      */
     @Override
-    public void updateTrackedPositionAndAngles(double x, double y, double z, float yaw, float pitch, int interpolationSteps)
+    public void updateTrackedPositionAndAngles(double x, double y, double z, float yaw, float pitch, int interpolationSteps, boolean interpolate)
     {
         if (this.stuck)
         {

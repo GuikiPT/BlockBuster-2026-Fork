@@ -10,8 +10,8 @@ import mchorse.blockbuster.capabilities.recording.Recording;
 import mchorse.blockbuster.recording.scene.Replay;
 import mchorse.metamorph.api.morphs.AbstractMorph;
 import mchorse.metamorph.api.morphs.EntityMorph;
-import net.minecraft.network.message.ChatVisibility;
-import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
+import net.minecraft.client.option.ChatVisibility;
+import net.minecraft.network.packet.c2s.play.ClientSettingsC2SPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Arm;
@@ -37,9 +37,11 @@ import net.minecraft.util.Uuids;
  *       ({@code Recording.get(player).setFakePlayer(true)}).</li>
  * </ul>
  *
- * <p>On 1.20.4 the client-settings byte-buffer hack is gone: the mask travels as
- * a {@link SyncedClientOptions} argument, and the netty stubs collapse into
- * {@link FakeClientConnection}/{@link FakePlayerNetworkHandler}.</p>
+ * <p>On 1.20.1 the netty stubs collapse into {@link FakeClientConnection}/
+ * {@link FakePlayerNetworkHandler}, but the mask still travels the legacy route:
+ * a {@link ClientSettingsC2SPacket} handed straight to
+ * {@code ServerPlayerEntity.setClientSettings} — the same packet type legacy
+ * hand-built as {@code CPacketClientSettings}, minus the byte-buffer forgery.</p>
  */
 public class FakePlayerFactory
 {
@@ -68,9 +70,8 @@ public class FakePlayerFactory
         try
         {
             GameProfile profile = createProfile(replay, actorIndex);
-            SyncedClientOptions options = createClientOptions(profile.getName());
 
-            ServerPlayerEntity player = new ServerPlayerEntity(world.getServer(), world, profile, options);
+            ServerPlayerEntity player = new ServerPlayerEntity(world.getServer(), world, profile);
 
             /* Attach a dead handler so nothing ever gets sent to a nonexistent
              * client. */
@@ -78,7 +79,7 @@ public class FakePlayerFactory
 
             /* Skins layers don't show up by default; force the model-part mask
              * onto the tracked data (legacy did this via handleClientSettings). */
-            player.setClientOptions(options);
+            player.setClientSettings(createClientSettings());
 
             IRecording recording = Recording.get(player);
 
@@ -140,14 +141,14 @@ public class FakePlayerFactory
     }
 
     /**
-     * Client options mirroring the legacy {@code CPacketClientSettings} buffer:
+     * Client settings mirroring the legacy {@code CPacketClientSettings} buffer:
      * language {@code "en_US"}, view distance {@code 10}, chat {@code FULL},
      * chat colors on, model-part mask {@code 127} (all layers), main arm
      * {@code RIGHT}. Text filtering off and server-listing on match the vanilla
      * defaults for the two fields 1.12.2 had no concept of.
      */
-    public static SyncedClientOptions createClientOptions(String name)
+    public static ClientSettingsC2SPacket createClientSettings()
     {
-        return new SyncedClientOptions("en_US", 10, ChatVisibility.FULL, true, ALL_MODEL_PARTS, Arm.RIGHT, false, true);
+        return new ClientSettingsC2SPacket("en_US", 10, ChatVisibility.FULL, true, ALL_MODEL_PARTS, Arm.RIGHT, false, true);
     }
 }

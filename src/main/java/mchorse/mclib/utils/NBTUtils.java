@@ -152,7 +152,10 @@ public class NBTUtils
 
             try
             {
-                return NbtIo.readCompound(new ByteBufInputStream(buf), NbtTagSizeTracker.ofUnlimitedBytes());
+                /* NbtTagSizeTracker.EMPTY has a 0 byte quota, which 1.20.1's
+                 * `add` reads as "no limit" — the direct equivalent of legacy
+                 * NBTSizeTracker.INFINITE. */
+                return NbtIo.read(new ByteBufInputStream(buf), NbtTagSizeTracker.EMPTY);
             }
             catch (IOException ioexception)
             {
@@ -168,7 +171,7 @@ public class NBTUtils
      */
     public static NbtCompound readInfiniteTag(PacketByteBuf buf)
     {
-        NbtElement element = buf.readNbt(NbtTagSizeTracker.ofUnlimitedBytes());
+        NbtElement element = buf.readUnlimitedNbt();
 
         return element instanceof NbtCompound ? (NbtCompound) element : null;
     }

@@ -340,7 +340,7 @@ public class WorldDebugRenderer
                 return;
             }
 
-            boolean showDebugInfo = mc.getDebugHud() != null && mc.getDebugHud().shouldShowDebugHud();
+            boolean showDebugInfo = mc.options != null && mc.options.debugEnabled;
 
             if (shouldRenderPaths(showDebugInfo, !recordsToRender.isEmpty(), debugPathsEnabled()))
             {

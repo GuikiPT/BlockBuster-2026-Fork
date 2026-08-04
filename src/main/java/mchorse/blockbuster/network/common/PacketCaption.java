@@ -30,7 +30,7 @@ public class PacketCaption implements IMessage
     {
         if (buf.readBoolean())
         {
-            this.caption = Text.Serialization.fromJson(ForgeByteBufUtils.readUTF8String(buf));
+            this.caption = Text.Serializer.fromJson(ForgeByteBufUtils.readUTF8String(buf));
         }
     }
 
@@ -41,7 +41,7 @@ public class PacketCaption implements IMessage
 
         if (this.caption != null)
         {
-            ForgeByteBufUtils.writeUTF8String(buf, Text.Serialization.toJsonString(this.caption));
+            ForgeByteBufUtils.writeUTF8String(buf, Text.Serializer.toJson(this.caption));
         }
     }
 }

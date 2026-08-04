@@ -190,7 +190,7 @@ public class CustomMorphRenderer implements IMorphRenderer<CustomMorph>
             return;
         }
 
-        if (!shouldRenderMissingName(mc.getDebugHud().shouldShowDebugHud()))
+        if (!shouldRenderMissingName(mc.options.debugEnabled))
         {
             return;
         }

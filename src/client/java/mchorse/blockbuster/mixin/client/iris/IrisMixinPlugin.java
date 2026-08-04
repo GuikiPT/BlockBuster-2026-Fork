@@ -78,11 +78,11 @@ public class IrisMixinPlugin implements IMixinConfigPlugin
 
     /**
      * The single Iris build P218 is compiled and eyeball-tested against —
-     * `maven.modrinth:iris:1.7.2+1.20.4`, file `iris-1.7.2+mc1.20.4.jar`. Kept
+     * `maven.modrinth:iris:1.7.0+1.20.1`, file `iris-1.7.0+mc1.20.1.jar`. Kept
      * in sync with `iris_version` in gradle.properties by
      * {@code ShaderCurveBridgeTest}.
      */
-    public static final String IRIS_VERSION = "1.7.2+1.20.4";
+    public static final String IRIS_VERSION = "1.7.0+1.20.1";
 
     /**
      * Every Iris internal the mixins in this config bind. If any one of them

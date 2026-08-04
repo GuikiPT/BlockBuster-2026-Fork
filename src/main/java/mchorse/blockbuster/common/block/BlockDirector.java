@@ -2,6 +2,7 @@ package mchorse.blockbuster.common.block;
 
 import mchorse.blockbuster.common.tileentity.TileEntityDirector;
 import mchorse.blockbuster.utils.EntityUtils;
+import mchorse.blockbuster.utils.IClientLanguage;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockEntityProvider;
 import net.minecraft.block.BlockRenderType;
@@ -191,13 +192,14 @@ public class BlockDirector extends Block implements BlockEntityProvider
      * otherwise.
      *
      * <p>Legacy obtained the language by reflecting the first {@code String}
-     * field of {@code EntityPlayerMP}; 1.20.4 exposes the value through the
-     * supported {@code ServerPlayerEntity.getClientOptions().language()}
-     * accessor (verified via javap). Behavioral output is identical.</p>
+     * field of {@code EntityPlayerMP}. 1.20.1 keeps no language field on
+     * {@code ServerPlayerEntity} at all, so the port re-adds one via
+     * {@code ServerPlayerEntityLanguageMixin} and reads it through
+     * {@link IClientLanguage}. Behavioral output is identical.</p>
      */
     public static String getUrl(ServerPlayerEntity player)
     {
-        String language = player.getClientOptions().language();
+        String language = ((IClientLanguage) player).blockbuster$getClientLanguage();
 
         return chinese(language) ? BILIBILI_URL : YOUTUBE_URL;
     }

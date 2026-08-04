@@ -174,7 +174,7 @@ public class TileEntityModelRenderer implements BlockEntityRenderer<TileEntityMo
         }
 
         /* Debug render (so people can find the block) — F3 gate. */
-        if (!deferred && mc.getDebugHud().shouldShowDebugHud() && (!mc.options.hudHidden || Blockbuster.modelBlockRenderDebuginf1.get()))
+        if (!deferred && mc.options.debugEnabled && (!mc.options.hudHidden || Blockbuster.modelBlockRenderDebuginf1.get()))
         {
             this.renderDebug(te, settings, matrices, vertexConsumers);
         }

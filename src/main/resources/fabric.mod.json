@@ -6,7 +6,7 @@
 	"description": "Design, direct and act in your own Minecraft machinimas — full port of Blockbuster 1.12.2 with bundled McLib, Metamorph, Aperture and Chameleon.",
 	"authors": [
 		"McHorse (original Blockbuster, McLib, Metamorph, Aperture, Chameleon)",
-		"Blockbuster 1.20.4 full-port project"
+		"Blockbuster 1.20.1 full-port project"
 	],
 	"contact": {
 		"sources": "https://github.com/mchorse/blockbuster",
@@ -40,8 +40,8 @@
 	],
 	"accessWidener": "blockbuster.accesswidener",
 	"depends": {
-		"fabricloader": ">=0.15.0",
-		"minecraft": "~1.20.4",
+		"fabricloader": ">=0.16.14",
+		"minecraft": "~1.20.1",
 		"java": ">=17",
 		"fabric-api": "*"
 	},

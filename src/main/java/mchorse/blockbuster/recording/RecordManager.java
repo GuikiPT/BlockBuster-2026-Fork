@@ -18,7 +18,6 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtTagSizeTracker;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
@@ -461,7 +460,7 @@ public class RecordManager
                     return null;
                 }
 
-                NbtCompound tag = NbtIo.readCompressed(stream, NbtTagSizeTracker.ofUnlimitedBytes());
+                NbtCompound tag = NbtIo.readCompressed(stream);
 
                 record = new Record(filename);
                 record.load(tag);

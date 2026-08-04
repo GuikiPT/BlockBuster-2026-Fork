@@ -178,19 +178,48 @@ public class LayerCustomHead
 
         /* Vanilla's own upgrade-and-write-back pass, which is what legacy's
          * synchronous TileEntitySkullRenderer.updateGameprofile became on
-         * 1.20.4: it resolves a string SkullOwner off-thread and replaces it
+         * 1.20.1: it resolves a string SkullOwner off-thread and replaces it
          * with the completed compound in this very NBT. It is a no-op once the
          * key is already a compound, so it costs nothing after the first hit,
          * and running it first means the injected resolver below only sees the
          * profiles vanilla has not answered for yet. */
-        SkullBlockEntity.fillSkullOwner(stack.getNbt());
+        fillSkullOwner(stack.getNbt());
 
         return resolveSkullProfile(stack.getNbt(), this.profileResolver);
     }
 
     /**
+     * 1.20.1's vanilla skull-owner upgrade pass, inlined.
+     *
+     * <p>1.20.2+ exposes this as {@code SkullBlockEntity.fillSkullOwner(NbtCompound)};
+     * on 1.20.1 the identical body sits in {@code SkullItem.postProcessNbt},
+     * which cannot be called without an item instance. Same three steps in the
+     * same order: skip unless {@code SkullOwner} is a non-blank string, hand a
+     * name-only profile to {@link SkullBlockEntity#loadProperties} (async, and
+     * cached by vanilla), and write the completed profile back over the string
+     * when it lands.</p>
+     */
+    private static void fillSkullOwner(NbtCompound nbt)
+    {
+        if (!nbt.contains(SkullBlockEntity.SKULL_OWNER_KEY, NbtElement.STRING_TYPE))
+        {
+            return;
+        }
+
+        String name = nbt.getString(SkullBlockEntity.SKULL_OWNER_KEY);
+
+        if (Util.isBlank(name))
+        {
+            return;
+        }
+
+        SkullBlockEntity.loadProperties(new GameProfile(null, name),
+            profile -> nbt.put(SkullBlockEntity.SKULL_OWNER_KEY, NbtHelper.writeGameProfile(new NbtCompound(), profile)));
+    }
+
+    /**
      * The default profile resolver: vanilla's skull-owner lookup, reached
-     * through the NBT-level API that is the only public entry point on 1.20.4.
+     * through the NBT-level API that is the only public entry point on 1.20.1.
      *
      * <p>Legacy's resolver returned the input profile unchanged whenever the
      * lookup missed, and the caller wrote <i>that</i> back — so an unresolvable
@@ -209,7 +238,7 @@ public class LayerCustomHead
 
         nbt.putString(SkullBlockEntity.SKULL_OWNER_KEY, profile.getName());
 
-        SkullBlockEntity.fillSkullOwner(nbt);
+        fillSkullOwner(nbt);
 
         GameProfile resolved = nbt.contains(SkullBlockEntity.SKULL_OWNER_KEY, NbtElement.COMPOUND_TYPE)
             ? NbtHelper.toGameProfile(nbt.getCompound(SkullBlockEntity.SKULL_OWNER_KEY))

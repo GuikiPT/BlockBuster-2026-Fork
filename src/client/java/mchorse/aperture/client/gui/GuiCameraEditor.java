@@ -1978,10 +1978,11 @@ public class GuiCameraEditor extends GuiBase
             if (drawContext != null)
             {
                 /* Legacy bound vanilla icons.png with the inverse-color blend;
-                 * 1.20.4 has the crosshair as a gui sprite */
+                 * 1.20.1 still keeps the crosshair there, at 0,0 15x15 — the
+                 * same blit vanilla's InGameHud.renderCrosshair does. */
                 RenderSystem.enableBlend();
                 RenderSystem.blendFuncSeparate(GlStateManager.SrcFactor.ONE_MINUS_DST_COLOR, GlStateManager.DstFactor.ONE_MINUS_SRC_COLOR, GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ZERO);
-                drawContext.drawGuiTexture(new Identifier("hud/crosshair"), this.viewport.mx() - 7, this.viewport.my() - 7, 15, 15);
+                drawContext.drawTexture(new Identifier("textures/gui/icons.png"), this.viewport.mx() - 7, this.viewport.my() - 7, 0, 0, 15, 15);
                 RenderSystem.defaultBlendFunc();
                 RenderSystem.disableBlend();
             }

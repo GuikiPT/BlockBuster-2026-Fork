@@ -41,7 +41,7 @@ public class TileEntityDirectorRenderer implements BlockEntityRenderer<TileEntit
     {
         MinecraftClient mc = MinecraftClient.getInstance();
 
-        if (mc == null || !mc.getDebugHud().shouldShowDebugHud() || mc.options.hudHidden)
+        if (mc == null || !mc.options.debugEnabled || mc.options.hudHidden)
         {
             return;
         }

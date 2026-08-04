@@ -48,6 +48,29 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * legacy bar exactly — and suppressing the {@code isSubmergedIn} arm restores
  * legacy's "only when {@code squidAir < 300}" visibility rule. Both redirects
  * are inert whenever the takeover is off, which is every non-morphed frame.</p>
+ *
+ * <p><b>Sinytra Connector: the squid-air redirects do not bind, by design.</b>
+ * Forge does not run vanilla's {@code renderStatusBars} at all — it splits that
+ * method across {@code ForgeGui.renderHealth}/{@code renderArmor}/
+ * {@code renderFood}/{@code renderAir} and drives them through its overlay
+ * registry. Connector compensates by lifting injections off the vanilla method
+ * into a generated {@code adapter_generated_ForgeGui} mixin, but it has to pick
+ * one replacement method for the whole original, and it picks
+ * {@code renderArmor(GuiGraphics, int, int)}. The armor segment contains
+ * neither {@code getAirSupply} nor {@code isEyeInFluid} — those live in
+ * {@code renderAir} — so both redirects scan one target and match nothing,
+ * which under the config's {@code defaultRequire: 1} is a hard
+ * {@code InjectionError} at HUD classload:
+ *
+ * <pre>Redirector blockbuster$squidAir ... failed injection check, (0/1) succeeded.</pre>
+ *
+ * <p>Which method the adapter targets is Connector's internal patch table, not
+ * something this mixin can steer, and {@code ForgeGui} cannot be targeted
+ * directly from a Fabric source set. So the redirects carry {@code require = 0}
+ * and the feature degrades on Forge: the air bar renders as vanilla's, without
+ * the morph's squid air. Everything else in this class survives Connector
+ * intact — {@code renderCrosshair} is untouched and the {@code render} HEAD
+ * inject is rewired onto Connector's own {@code connector_preRender} hook.</p>
  */
 @Mixin(InGameHud.class)
 public class InGameHudMixin
@@ -77,13 +100,20 @@ public class InGameHudMixin
         }
     }
 
-    @Redirect(method = "renderStatusBars", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/PlayerEntity;getAir()I"))
+    /* require = 0 on both squid-air redirects is for Sinytra Connector, and is
+     * inert on Fabric — see the class javadoc's Connector note. Vanilla's
+     * renderStatusBars has exactly one call site for each target, so on Fabric
+     * both still bind; expect stays at its default of 1, so a Yarn/vanilla
+     * change that silently unbinds them still logs a mixin warning rather than
+     * passing unnoticed. */
+
+    @Redirect(method = "renderStatusBars", require = 0, at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/PlayerEntity;getAir()I"))
     private int blockbuster$squidAir(PlayerEntity player)
     {
         return MetamorphHudWiring.airBarValue(player.getAir());
     }
 
-    @Redirect(method = "renderStatusBars", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/PlayerEntity;isSubmergedIn(Lnet/minecraft/registry/tag/TagKey;)Z"))
+    @Redirect(method = "renderStatusBars", require = 0, at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/PlayerEntity;isSubmergedIn(Lnet/minecraft/registry/tag/TagKey;)Z"))
     private boolean blockbuster$squidAirSubmerged(PlayerEntity player, TagKey<Fluid> tag)
     {
         return MetamorphHudWiring.airBarSubmerged(player.isSubmergedIn(tag));

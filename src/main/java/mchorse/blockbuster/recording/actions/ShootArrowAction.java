@@ -6,8 +6,6 @@ import mchorse.blockbuster.utils.EntityUtils;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.projectile.ArrowEntity;
 import net.minecraft.item.BowItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.world.World;
@@ -66,7 +64,9 @@ public class ShootArrowAction extends Action
         }
 
         World world = actor.getWorld();
-        ArrowEntity arrow = new ArrowEntity(world, actor, new ItemStack(Items.ARROW));
+        /* 1.20.1's two-arg constructor already defaults the pickup stack to a
+         * plain arrow, so there is no ItemStack overload to pass one to. */
+        ArrowEntity arrow = new ArrowEntity(world, actor);
 
         arrow.setVelocity(actor, frame.pitch, frame.yaw, 0.0F, arrowVelocity(this.charge), 1.0F);
         world.spawnEntity(arrow);

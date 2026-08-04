@@ -13,14 +13,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * S15 P180 — vanilla fog colour + fog start/end curves.
  *
  * <p>Replaces the 1.12.2 coremod's {@code GlStateManagerTransformer} redirects of
- * {@code setFogColor}/{@code setFogStart}/{@code setFogEnd}. On 1.20.4 fog moved
+ * {@code setFogColor}/{@code setFogStart}/{@code setFogEnd}. On 1.20.1 fog moved
  * out of the fixed-function {@code GlStateManager} into the core shader-fog
- * uniforms managed by {@link RenderSystem}: {@code BackgroundRenderer.applyFogColor}
+ * uniforms managed by {@link RenderSystem}: {@code BackgroundRenderer.setFogBlack}
  * pushes the colour and {@code BackgroundRenderer.applyFog} pushes start/end. We
  * override those uniforms right after vanilla sets them, sourcing values from the
  * {@code fogr/fogg/fogb} and {@code fogstart/fogend} curves.</p>
  *
- * <p>Parity delta: the {@code fogdensity} curve has no 1.20.4 core equivalent
+ * <p>{@code setFogBlack} is a yarn misnomer, not a black-out: its whole body is
+ * {@code RenderSystem.setShaderFogColor(red, green, blue)} over the fog colour
+ * {@code render} just computed. 1.20.2 renamed it {@code applyFogColor} without
+ * touching the body, so this is the same injection point on either version.</p>
+ *
+ * <p>Parity delta: the {@code fogdensity} curve has no 1.20.1 core equivalent
  * (fog is linear start/end now, not exponential density) — its id is still
  * registered so profiles round-trip, but it is not applied to the render. See
  * the stage parity notes.</p>
@@ -28,7 +33,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(BackgroundRenderer.class)
 public class BackgroundRendererCurveMixin
 {
-    @Inject(method = "applyFogColor", at = @At("TAIL"))
+    @Inject(method = "setFogBlack", at = @At("TAIL"))
     private static void blockbuster$onApplyFogColor(CallbackInfo info)
     {
         if (AsmRenderingHandler.values.isEmpty())

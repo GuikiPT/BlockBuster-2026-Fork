@@ -197,7 +197,7 @@ public class GuiBase extends Screen
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount)
+    public boolean mouseScrolled(double mouseX, double mouseY, double verticalAmount)
     {
         /* Legacy scroll = -Mouse.getEventDWheel(); GLFW gives +1 per notch up,
          * LWJGL2 gave +120 per notch up — flip the sign and restore the 120

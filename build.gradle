@@ -1,5 +1,5 @@
 plugins {
-	id 'fabric-loom' version '1.6-SNAPSHOT'
+	id 'fabric-loom' version '1.15-SNAPSHOT'
 }
 
 // Release version is `mod_version` plus the game version, so the shipped jar is
@@ -23,6 +23,35 @@ base {
 
 loom {
 	splitEnvironmentSourceSets()
+
+	// Build mixins through the legacy Mixin annotation processor, i.e. ship a
+	// real refmap instead of letting Loom bake intermediary names straight into
+	// the `@Inject(method = ...)` annotation values.
+	//
+	// Loom flipped this default off, and on Fabric the difference is invisible:
+	// a production Fabric runtime *is* intermediary, so a baked `method_1507`
+	// resolves either way and the refmap is dead weight.
+	//
+	// It is not invisible under Sinytra Connector. Connector has to translate
+	// this jar from intermediary to Forge's SRG names, and the only mixin
+	// name-strings it rewrites are the ones it finds in a refmap — a bare
+	// `method_1507` baked into an annotation is opaque to it and survives into
+	// the Forge runtime, where it matches nothing:
+	//
+	//     Critical injection failure: @Inject annotation on blockbuster$onSetScreen
+	//     could not find any targets matching 'method_1507' in
+	//     net.minecraft.client.Minecraft. No refMap loaded.
+	//
+	// With the AP on, the annotations keep their yarn names and the refmap
+	// carries yarn -> intermediary, which Connector can remap to yarn -> SRG.
+	// This is also why `blockbuster.client.mixins.json` /
+	// `blockbuster.iris.mixins.json` / `metamorph.client.mixins.json` name
+	// `client-blockbuster-refmap.json` explicitly: with split source sets Loom
+	// only auto-injects the *main* refmap into configs that declare none, so the
+	// client-side configs have to point at their own source set's refmap by hand.
+	mixin {
+		useLegacyMixinAp = true
+	}
 
 	mods {
 		"blockbuster" {
@@ -139,11 +168,11 @@ jar {
 }
 
 // DEV convenience (user-requested): after every `build`, drop the remapped
-// mod jar into the local MultiMC 1.20.4 test instance, replacing any older
+// mod jar into the local MultiMC 1.20.1 test instance, replacing any older
 // blockbuster jar, so in-game testing needs no manual copy. Skips silently
 // when the instance folder doesn't exist (CI/other machines).
 def multimcMods = new File(System.getProperty('user.home'),
-	'.local/share/multimc/instances/1.20.4/.minecraft/mods')
+	'.local/share/multimc/instances/1.20.1/.minecraft/mods')
 
 tasks.register('installToMultiMC') {
 	dependsOn tasks.named('remapJar')

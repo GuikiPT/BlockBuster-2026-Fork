@@ -109,7 +109,7 @@ public class GuiActor extends GuiBase
         GuiDraw.bindDrawContext(drawContext);
 
         /* Legacy drawDefaultBackground() */
-        this.renderBackground(drawContext, mouseX, mouseY, partialTicks);
+        this.renderBackground(drawContext);
 
         /* Legacy drawCenteredString(font, title, width/2, 16, 0xffffff) */
         GuiDraw.drawCenteredString(this.context.font, IKey.lang("blockbuster.gui.actor.title").get(), this.width / 2, 16, 0xffffff);

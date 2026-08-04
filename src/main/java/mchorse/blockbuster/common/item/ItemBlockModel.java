@@ -161,7 +161,7 @@ public class ItemBlockModel extends Item
             return ActionResult.FAIL;
         }
 
-        if (!world.setBlockState(pos, state, Block.NOTIFY_ALL_AND_REDRAW))
+        if (!world.setBlockState(pos, state, Block.NOTIFY_ALL | Block.REDRAW_ON_MAIN_THREAD))
         {
             return ActionResult.FAIL;
         }

@@ -15,7 +15,6 @@ import net.minecraft.state.property.EnumProperty;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockView;
-import net.minecraft.world.WorldView;
 
 /**
  * P97: chroma (green screen) block — 8 colors, blast-proof, rendered
@@ -82,11 +81,11 @@ public class BlockGreen extends Block
 
     /**
      * Legacy {@code getPickBlock}: pick returns a stack carrying the picked
-     * color. On 1.20.4 the color rides the vanilla {@code BlockStateTag} NBT
+     * color. On 1.20.1 the color rides the vanilla {@code BlockStateTag} NBT
      * ({@code {color: "<name>"}}) which the block item honors on placement.
      */
     @Override
-    public ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state)
+    public ItemStack getPickStack(BlockView world, BlockPos pos, BlockState state)
     {
         return colorStack(this, state.get(COLOR));
     }

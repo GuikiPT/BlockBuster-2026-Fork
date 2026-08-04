@@ -5,7 +5,6 @@ import com.mojang.authlib.properties.Property;
 
 import mchorse.blockbuster.mixin.EntityStepSoundAccessor;
 import mchorse.blockbuster.mixin.LivingEntityAccessor;
-import mchorse.metamorph.mixin.SkullBlockEntityProfileInvoker;
 import mchorse.mclib.utils.NBTUtils;
 import mchorse.mclib.utils.resources.RLUtils;
 import mchorse.mclib.utils.resources.ResourceLocation;
@@ -15,6 +14,7 @@ import mchorse.metamorph.api.MorphSettings;
 import mchorse.metamorph.bodypart.BodyPartManager;
 import mchorse.metamorph.bodypart.IBodyPartProvider;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.SkullBlockEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
@@ -39,7 +39,6 @@ import net.minecraft.nbt.NbtHelper;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.Util;
 import net.minecraft.util.Uuids;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -90,7 +89,7 @@ public class EntityMorph extends AbstractMorph implements IBodyPartProvider
      * this port drives the arm model explicitly through {@link #slim}, so an
      * offline profile is enough and no one's account gets embedded.
      */
-    public static final GameProfile DEFAULT_PLAYER_PROFILE = Uuids.getOfflinePlayerProfile("Steve");
+    public static final GameProfile DEFAULT_PLAYER_PROFILE = offlineProfile("Steve");
 
     /**
      * Client-entity seam for the player disguise.
@@ -462,26 +461,55 @@ public class EntityMorph extends AbstractMorph implements IBodyPartProvider
      * .updateGameprofile}) and swaps the resolved profile in.</p>
      *
      * <p>Async, cached and offline-tolerant — see
-     * {@link SkullBlockEntityProfileInvoker}. A failed or unknown name leaves
-     * the offline profile in place, which is why the assignment is guarded on a
-     * present result.</p>
+     * {@link #resolveProfileAsync}. A failed or unknown name leaves the offline
+     * profile in place.</p>
      *
-     * <p>The callback lands on a worker thread, so it does the two cheapest
-     * possible things: publish the profile (the field is {@code volatile}) and
-     * drop the inner entity. It deliberately does not rebuild the entity —
-     * {@link #update} and {@link #getEntity(World)} both recreate a null one on
-     * the game thread at the next opportunity, which is where entity
-     * construction belongs.</p>
+     * <p>The callback does the two cheapest possible things: publish the
+     * profile and drop the inner entity. It deliberately does not rebuild the
+     * entity — {@link #update} and {@link #getEntity(World)} both recreate a
+     * null one at the next opportunity, which is where entity construction
+     * belongs.</p>
      */
     public void setProfile(String username)
     {
-        this.profile = Uuids.getOfflinePlayerProfile(username);
+        this.profile = offlineProfile(username);
 
-        this.resolveProfileAsync(username, true);
+        this.resolveProfileAsync(true);
     }
 
     /**
-     * Kick off the username lookup and swap the result in.
+     * A name-only profile carrying the deterministic offline UUID — the same
+     * fallback vanilla uses when it cannot resolve a real account.
+     *
+     * <p>Spelled out rather than {@code Uuids.getOfflinePlayerProfile(name)},
+     * which does not exist on 1.20.1 (it arrived with 1.20.2). That helper is
+     * this plus a "the string might already be a UUID" branch, which no caller
+     * here needs — the input is always a username typed into the editor or read
+     * from a legacy {@code Username} tag.</p>
+     */
+    public static GameProfile offlineProfile(String username)
+    {
+        return new GameProfile(Uuids.getOfflinePlayerUuid(username), username);
+    }
+
+    /**
+     * Fill {@link #profile} in with the account's real UUID and {@code textures}
+     * property — the S7/P92 lookup, closing legacy's
+     * {@code TileEntitySkull.updateGameprofile}.
+     *
+     * <p>{@code SkullBlockEntity.loadProperties} is vanilla's own name → full
+     * profile path (user cache for the UUID, session service for the
+     * properties) and is public on 1.20.1, so no mixin is needed. It runs its
+     * callback on the game executor and caches what it resolves.</p>
+     *
+     * <p><b>It always calls back</b>, including with the profile it was handed:
+     * when the name did not resolve, when the services are absent (a client
+     * that never had them, an offline session), and when the profile already
+     * had textures. So the callback only acts on a profile that actually gained
+     * a skin — swapping in an unresolved one would reset the entity for nothing
+     * and, worse, re-seed {@link #slim} to wide off a texture-less profile,
+     * silently undoing the user's toggle. The same test guards the entry, so a
+     * profile that is already complete never round-trips at all.</p>
      *
      * @param seedSlim whether the resolved account's own arm model should
      *                 become {@link #slim}. True when the user just typed a
@@ -489,20 +517,25 @@ public class EntityMorph extends AbstractMorph implements IBodyPartProvider
      *                 repairing a stored profile, where the saved flag is the
      *                 user's own choice and must not be overwritten.
      */
-    private void resolveProfileAsync(String username, boolean seedSlim)
+    private void resolveProfileAsync(boolean seedSlim)
     {
-        SkullBlockEntityProfileInvoker.metamorph$fetchProfile(username).thenAccept((resolved) ->
+        if (this.profile == null || hasTextures(this.profile))
         {
-            if (resolved.isEmpty())
+            return;
+        }
+
+        SkullBlockEntity.loadProperties(this.profile, (resolved) ->
+        {
+            if (!hasTextures(resolved))
             {
                 return;
             }
 
-            this.profile = resolved.get();
+            this.profile = resolved;
 
             if (seedSlim)
             {
-                this.slim = isSlimProfile(this.profile);
+                this.slim = isSlimProfile(resolved);
             }
 
             this.resetEntity();
@@ -538,7 +571,10 @@ public class EntityMorph extends AbstractMorph implements IBodyPartProvider
              * JSON parse of an attacker-supplied blob. */
             try
             {
-                if (new String(Base64.getDecoder().decode(property.value()), StandardCharsets.UTF_8).contains("\"model\":\"slim\""))
+                /* getValue(), not value(): 1.20.1 ships authlib 4.0.43, where
+                 * Property is a plain class; the record accessors arrived with
+                 * the 6.x authlib 1.20.2 pulled in. */
+                if (new String(Base64.getDecoder().decode(property.getValue()), StandardCharsets.UTF_8).contains("\"model\":\"slim\""))
                 {
                     return true;
                 }
@@ -1108,10 +1144,7 @@ public class EntityMorph extends AbstractMorph implements IBodyPartProvider
          * nothing else ever revisits a profile that is already non-null. The
          * stored Slim flag is left alone here; it is the user's, not the
          * account's. */
-        if (this.profile != null && !hasTextures(this.profile) && !Util.isBlank(this.profile.getName()))
-        {
-            this.resolveProfileAsync(this.profile.getName(), false);
-        }
+        this.resolveProfileAsync(false);
 
         this.entityData = tag.getCompound("EntityData");
 

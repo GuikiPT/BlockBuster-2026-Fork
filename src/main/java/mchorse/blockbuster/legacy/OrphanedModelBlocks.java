@@ -14,7 +14,6 @@ import mchorse.mclib.utils.AtomicWrite;
 import mchorse.mclib.utils.Patterns;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtTagSizeTracker;
 import net.minecraft.util.math.BlockPos;
 
 /**
@@ -162,7 +161,7 @@ public final class OrphanedModelBlocks
 
         try (FileInputStream in = new FileInputStream(file))
         {
-            return NbtIo.readCompressed(in, NbtTagSizeTracker.ofUnlimitedBytes());
+            return NbtIo.readCompressed(in);
         }
         catch (Exception e)
         {

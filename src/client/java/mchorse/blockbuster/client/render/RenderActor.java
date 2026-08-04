@@ -184,7 +184,7 @@ public class RenderActor extends LivingEntityRenderer<EntityActor, PlayerEntityM
     {
         MinecraftClient mc = MinecraftClient.getInstance();
 
-        if (mc == null || !mc.getDebugHud().shouldShowDebugHud() || this.dispatcher.camera == null)
+        if (mc == null || !mc.options.debugEnabled || this.dispatcher.camera == null)
         {
             return;
         }
