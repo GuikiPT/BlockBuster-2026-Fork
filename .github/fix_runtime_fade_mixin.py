@@ -21,7 +21,7 @@ new = '''    @ModifyArg(
         method = "render(Lnet/minecraft/entity/LivingEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/model/Model;render(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;III)V"
+            target = "Lnet/minecraft/client/render/entity/model/EntityModel;render(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumer;III)V"
         ),
         index = 4
     )
@@ -48,11 +48,11 @@ if old not in text:
 text = text.replace(old, new)
 text = text.replace(
     "The 1.20.4 equivalent of that colour is the\n * four float arguments of {@code Model.render}, so the fade is applied by\n * rewriting the {@code alpha} one.",
-    "The 1.21.1 equivalent is the packed ARGB colour passed to\n * {@code Model.render}, so the fade is applied by replacing only its alpha\n * byte while preserving the RGB channels."
+    "The 1.21.1 equivalent is the packed ARGB colour passed to\n * {@code EntityModel.render}, so the fade is applied by replacing only its\n * alpha byte while preserving the RGB channels."
 )
 text = text.replace(
     "and {@code EntityModel.render(MatrixStack, VertexConsumer, int, int, float,\n * float, float, float)} — one call site each inside",
-    "and {@code Model.render(MatrixStack, VertexConsumer, int, int, int)} — one\n * call site each inside"
+    "and {@code EntityModel.render(MatrixStack, VertexConsumer, int, int, int)}\n * — one call site each inside"
 )
 
 path.write_text(text, encoding="utf-8")
