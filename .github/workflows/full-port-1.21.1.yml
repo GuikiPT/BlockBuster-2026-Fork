@@ -31,6 +31,7 @@ jobs:
           python .github/fix_client_fluent_chains.py
           python .github/fix_client_batch2.py
           python .github/fix_client_batch3.py
+          python .github/fix_final_compile_and_mixins.py
       - name: Build migrated source
         run: |
           chmod +x gradlew
