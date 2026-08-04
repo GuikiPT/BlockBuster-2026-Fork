@@ -18,6 +18,8 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: gradle
+      - name: Apply source migration
+        run: python .github/port_1211.py
       - name: Make Gradle executable
         run: chmod +x gradlew
       - name: Build
