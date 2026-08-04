@@ -26,6 +26,7 @@ jobs:
           python .github/fix_remaining_main.py
           python .github/fix_fake_connection.py
           python .github/fix_client_batch1.py
+          python .github/fix_client_rendering.py
       - name: Build migrated source
         run: |
           chmod +x gradlew
