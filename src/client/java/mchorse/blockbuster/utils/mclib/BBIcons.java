@@ -1,0 +1,32 @@
+package mchorse.blockbuster.utils.mclib;
+
+import mchorse.mclib.client.gui.utils.Icon;
+import mchorse.mclib.utils.resources.ResourceLocation;
+
+/**
+ * Port of Blockbuster 2.7.2's {@code BBIcons} (roadmap P31) — Blockbuster's
+ * own 256×256 icon atlas, a trivial consumer of the bundled McLib
+ * {@link Icon}. Texture asset: {@code assets/blockbuster/textures/gui/icons.png}
+ * (byte-identical copy of the legacy atlas). UVs pinned by the same
+ * reflection test as {@code Icons}.
+ */
+public class BBIcons
+{
+    public static final ResourceLocation ICONS = new ResourceLocation("blockbuster", "textures/gui/icons.png");
+
+    public static Icon YOUTUBE = new Icon(ICONS, 0, 0);
+    public static Icon TWITTER = new Icon(ICONS, 16, 0);
+    public static Icon CHICKEN = new Icon(ICONS, 32, 0);
+    public static Icon HITBOX = new Icon(ICONS, 48, 0);
+    public static Icon ARM1 = new Icon(ICONS, 64, 0);
+    public static Icon LEGS1 = new Icon(ICONS, 80, 0);
+    public static Icon NO_ITEMS = new Icon(ICONS, 96, 0);
+    public static Icon ARM2 = new Icon(ICONS, 112, 0);
+    public static Icon LEGS2 = new Icon(ICONS, 128, 0);
+    public static Icon HELD_ITEMS = new Icon(ICONS, 144, 0);
+    public static Icon BULLET = new Icon(ICONS, 160, 0);
+    public static Icon PARTICLE = new Icon(ICONS, 176, 0);
+    public static Icon SCENE = new Icon(ICONS, 192, 0);
+    public static Icon EDITOR = new Icon(ICONS, 208, 0);
+    public static Icon LOOKING = new Icon(ICONS, 224, 0);
+}

@@ -1,0 +1,45 @@
+package mchorse.aperture.client.gui.utils;
+
+import mchorse.aperture.camera.values.ValueKeyframeChannel;
+import mchorse.aperture.client.gui.GuiCameraEditor;
+import mchorse.mclib.config.values.Value;
+import net.minecraft.client.MinecraftClient;
+
+/**
+ * Graph editor GUI designed specifically for keyframe fixture panel
+ *
+ * Legacy source: .tools/legacy-src/aperture/src/main/java/mchorse/aperture/client/gui/utils/GuiCameraEditorKeyframesGraphEditor.java
+ */
+public class GuiCameraEditorKeyframesGraphEditor extends GuiCameraEditorKeyframesEditor<GuiGraphView>
+{
+    public GuiCameraEditorKeyframesGraphEditor(MinecraftClient mc, GuiCameraEditor editor)
+    {
+        super(mc, editor);
+
+        this.graph.editor = editor;
+    }
+
+    @Override
+    protected GuiGraphView createElement(MinecraftClient mc)
+    {
+        return new GuiGraphView(mc, this, this::fillData);
+    }
+
+    public void setChannel(Value value, int color)
+    {
+        ValueKeyframeChannel keyframe = this.get(value);
+
+        if (keyframe == null)
+        {
+            throw new IllegalStateException("Given value doesn't have a keyframe channel! " + value.getClass().getSimpleName());
+        }
+
+        this.graph.clearSelection();
+        this.graph.setChannel(keyframe.get(), color);
+        this.interpolations.setVisible(false);
+        this.frameButtons.setVisible(false);
+
+        this.valueChannels.clear();
+        this.valueChannels.add(value);
+    }
+}

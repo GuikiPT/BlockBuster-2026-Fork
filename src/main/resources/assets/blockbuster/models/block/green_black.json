@@ -1,0 +1,6 @@
+{
+    "parent": "blockbuster:block/green",
+    "textures": {
+        "all": "blockbuster:blocks/black"
+    }
+}

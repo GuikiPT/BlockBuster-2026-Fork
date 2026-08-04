@@ -1,0 +1,12 @@
+{
+    "parent": "blockbuster:block/green",
+    "overrides": [
+        { "predicate": { "blockbuster:chroma": 0.125 }, "model": "blockbuster:block/green_blue" },
+        { "predicate": { "blockbuster:chroma": 0.25  }, "model": "blockbuster:block/green_red" },
+        { "predicate": { "blockbuster:chroma": 0.375 }, "model": "blockbuster:block/green_yellow" },
+        { "predicate": { "blockbuster:chroma": 0.5   }, "model": "blockbuster:block/green_cyan" },
+        { "predicate": { "blockbuster:chroma": 0.625 }, "model": "blockbuster:block/green_purple" },
+        { "predicate": { "blockbuster:chroma": 0.75  }, "model": "blockbuster:block/green_white" },
+        { "predicate": { "blockbuster:chroma": 0.875 }, "model": "blockbuster:block/green_black" }
+    ]
+}

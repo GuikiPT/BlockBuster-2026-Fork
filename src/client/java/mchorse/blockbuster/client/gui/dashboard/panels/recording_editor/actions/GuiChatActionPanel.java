@@ -1,0 +1,50 @@
+package mchorse.blockbuster.client.gui.dashboard.panels.recording_editor.actions;
+
+import mchorse.blockbuster.client.gui.dashboard.panels.recording_editor.GuiRecordingEditorPanel;
+import mchorse.blockbuster.recording.actions.ChatAction;
+import mchorse.mclib.client.gui.framework.elements.input.GuiTextElement;
+import mchorse.mclib.client.gui.framework.elements.utils.GuiContext;
+import mchorse.mclib.client.gui.framework.elements.utils.GuiDraw;
+import mchorse.mclib.utils.ColorUtils;
+import net.minecraft.client.MinecraftClient;
+
+/**
+ * P139 — a 10000-char field bound to {@link ChatAction#message}, with a live
+ * formatted preview of {@code action.getMessage(null)} rendered above the field
+ * on a half-black background (shows the {@code @}-name/prefix substitution).
+ */
+public class GuiChatActionPanel extends GuiActionPanel<ChatAction>
+{
+    public GuiTextElement command;
+
+    public GuiChatActionPanel(MinecraftClient mc, GuiRecordingEditorPanel panel)
+    {
+        super(mc, panel);
+
+        this.command = new GuiTextElement(mc, 10000, (str) -> this.action.message = str);
+        this.command.flex().relative(this.area).set(10, 0, 0, 20).y(1, -30).w(1, -20);
+
+        this.add(this.command);
+    }
+
+    @Override
+    public void fill(ChatAction action)
+    {
+        super.fill(action);
+
+        this.command.setText(action.message);
+    }
+
+    @Override
+    public void draw(GuiContext context)
+    {
+        String message = this.action.getMessage(null);
+
+        if (!message.isEmpty())
+        {
+            GuiDraw.drawTextBackground(this.font, message, this.command.area.x + 3, this.command.area.y - GuiDraw.fontHeight(this.font) - 3, 0xffffff, ColorUtils.HALF_BLACK);
+        }
+
+        super.draw(context);
+    }
+}

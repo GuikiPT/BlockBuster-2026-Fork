@@ -1,0 +1,12 @@
+{
+    "variants": {
+        "color=green":  { "model": "blockbuster:block/green" },
+        "color=blue":   { "model": "blockbuster:block/green_blue" },
+        "color=red":    { "model": "blockbuster:block/green_red" },
+        "color=yellow": { "model": "blockbuster:block/green_yellow" },
+        "color=cyan":   { "model": "blockbuster:block/green_cyan" },
+        "color=purple": { "model": "blockbuster:block/green_purple" },
+        "color=white":  { "model": "blockbuster:block/green_white" },
+        "color=black":  { "model": "blockbuster:block/green_black" }
+    }
+}

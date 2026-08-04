@@ -1,0 +1,160 @@
+package mchorse.blockbuster.client.gui.dashboard.panels.model_editor.tabs;
+
+import mchorse.blockbuster.api.Model;
+import mchorse.blockbuster.client.gui.dashboard.panels.model_editor.GuiModelEditorPanel;
+import mchorse.blockbuster.client.gui.dashboard.panels.model_editor.utils.GuiThreeElement;
+import mchorse.blockbuster.client.gui.dashboard.panels.model_editor.utils.GuiTwoElement;
+import mchorse.mclib.client.gui.framework.elements.GuiScrollElement;
+import mchorse.mclib.client.gui.framework.elements.buttons.GuiButtonElement;
+import mchorse.mclib.client.gui.framework.elements.buttons.GuiToggleElement;
+import mchorse.mclib.client.gui.framework.elements.input.GuiTextElement;
+import mchorse.mclib.client.gui.framework.elements.input.GuiTrackpadElement;
+import mchorse.mclib.client.gui.framework.elements.utils.GuiContext;
+import mchorse.mclib.client.gui.utils.Elements;
+import mchorse.mclib.client.gui.utils.keys.IKey;
+import mchorse.mclib.utils.Direction;
+import net.minecraft.client.MinecraftClient;
+
+/**
+ * Model editor Options tab (roadmap P137) — the model-wide properties: name,
+ * texture size, extrusion, scale, default texture, skins folder and the three
+ * OBJ flags.
+ *
+ * <p>Legacy source (ported 1:1):
+ * {@code blockbuster-1.12/.../model_editor/tabs/GuiModelOptions.java}.</p>
+ *
+ * <p><b>Legacy quirks preserved.</b></p>
+ * <ul>
+ * <li>The texture-size limit is <b>8196</b>, not 8192 — a typo in 2.7.2 that is
+ * nonetheless the number users' existing muscle memory (and any hand-typed
+ * value) has been clamped against. Kept.</li>
+ * <li><b>{@code scale} neither rebuilds nor marks the model dirty.</b> Every
+ * other property either calls {@code panel.rebuildModel()} or
+ * {@code panel.dirty()}; the three scale trackpads write straight into
+ * {@code model.scale} and do neither, so the save button keeps claiming the
+ * model is saved after a scale edit. Reproduced — see the S20 in-game
+ * checklist.</li>
+ * <li>{@code name} likewise only assigns {@code model.name} with no dirty
+ * call.</li>
+ * <li>{@code fillData} does <b>not</b> refresh the default-texture button (it
+ * has no state to show) — only the picker writes it.</li>
+ * </ul>
+ */
+public class GuiModelOptions extends GuiModelEditorTab
+{
+    /* Main properties */
+    private GuiTextElement name;
+    private GuiTwoElement texture;
+    private GuiTrackpadElement extrudeMaxFactor;
+    private GuiTrackpadElement extrudeInwards;
+    private GuiThreeElement scale;
+    private GuiTrackpadElement scaleGui;
+    private GuiButtonElement defaultTexture;
+    private GuiTextElement skins;
+    private GuiToggleElement providesObj;
+    private GuiToggleElement providesMtl;
+    private GuiToggleElement legacyObj;
+
+    public GuiModelOptions(MinecraftClient mc, GuiModelEditorPanel panel)
+    {
+        super(mc, panel);
+
+        /* Main properties */
+        GuiScrollElement element = new GuiScrollElement(mc);
+
+        this.name = new GuiTextElement(mc, 120, (str) -> this.panel.model.name = str);
+        this.texture = new GuiTwoElement(mc, (value) ->
+        {
+            this.panel.model.texture[0] = value[0].intValue();
+            this.panel.model.texture[1] = value[1].intValue();
+            this.panel.rebuildModel();
+        });
+        this.texture.setLimit(1, 8196, true);
+        this.extrudeMaxFactor = new GuiTrackpadElement(mc, (value) ->
+        {
+            this.panel.model.extrudeMaxFactor = value.intValue();
+            this.panel.rebuildModel();
+        });
+        this.extrudeMaxFactor.tooltip(IKey.lang("blockbuster.gui.me.options.extrude_max_factor"));
+        this.extrudeMaxFactor.integer().limit(1);
+        this.extrudeInwards = new GuiTrackpadElement(mc, (value) ->
+        {
+            this.panel.model.extrudeInwards = value.intValue();
+            this.panel.rebuildModel();
+        });
+        this.extrudeInwards.tooltip(IKey.lang("blockbuster.gui.me.options.extrude_inwards"));
+        this.extrudeInwards.integer().limit(1);
+        this.scale = new GuiThreeElement(mc, (value) ->
+        {
+            this.panel.model.scale[0] = value[0].floatValue();
+            this.panel.model.scale[1] = value[1].floatValue();
+            this.panel.model.scale[2] = value[2].floatValue();
+        });
+        this.scaleGui = new GuiTrackpadElement(mc, (value) ->
+        {
+            this.panel.model.scaleGui = value.floatValue();
+            this.panel.dirty();
+        });
+        this.scaleGui.tooltip(IKey.lang("blockbuster.gui.me.options.scale_gui"));
+        this.defaultTexture = new GuiButtonElement(mc, IKey.lang("blockbuster.gui.me.options.default_texture"), (b) ->
+        {
+            this.panel.pickTexture(this.panel.model.defaultTexture, (rl) ->
+            {
+                this.panel.model.defaultTexture = rl;
+                this.panel.dirty();
+            });
+        });
+        this.skins = new GuiTextElement(mc, 120, (str) ->
+        {
+            this.panel.model.skins = str;
+            this.panel.dirty();
+        });
+        this.providesObj = new GuiToggleElement(mc, IKey.lang("blockbuster.gui.me.options.provides_obj"), false, (b) ->
+        {
+            this.panel.model.providesObj = b.isToggled();
+            this.panel.rebuildModel();
+        });
+        this.providesMtl = new GuiToggleElement(mc, IKey.lang("blockbuster.gui.me.options.provides_mtl"), false, (b) ->
+        {
+            this.panel.model.providesMtl = b.isToggled();
+            this.panel.rebuildModel();
+        });
+        this.legacyObj = new GuiToggleElement(mc, IKey.lang("blockbuster.gui.me.options.legacy_obj"), false, (b) ->
+        {
+            this.panel.model.legacyObj = b.isToggled();
+            this.panel.rebuildModel();
+        });
+        this.legacyObj.tooltip(IKey.lang("blockbuster.gui.me.options.legacy_obj_tooltip"), Direction.TOP);
+
+        element.flex().relative(this).wh(1F, 1F).column(5).vertical().stretch().scroll().padding(10).height(20);
+        element.add(Elements.label(IKey.lang("blockbuster.gui.me.options.name")), this.name);
+        element.add(Elements.label(IKey.lang("blockbuster.gui.me.options.texture")), this.texture);
+        element.add(Elements.label(IKey.lang("blockbuster.gui.me.options.extrusion")), this.extrudeMaxFactor, this.extrudeInwards);
+        element.add(Elements.label(IKey.lang("blockbuster.gui.me.options.scale")), this.scale, this.scaleGui, this.defaultTexture);
+        element.add(Elements.label(IKey.lang("blockbuster.gui.me.options.skins")), this.skins, this.providesObj, this.providesMtl, this.legacyObj);
+
+        this.add(element);
+    }
+
+    public void fillData(Model model)
+    {
+        this.name.setText(model.name);
+        this.texture.setValues(model.texture[0], model.texture[1]);
+        this.extrudeMaxFactor.setValue(model.extrudeMaxFactor);
+        this.extrudeInwards.setValue(model.extrudeInwards);
+        this.scale.setValues(model.scale[0], model.scale[1], model.scale[2]);
+        this.scaleGui.setValue(model.scaleGui);
+        this.skins.setText(model.skins);
+        this.providesObj.toggled(model.providesObj);
+        this.providesMtl.toggled(model.providesMtl);
+        this.legacyObj.toggled(model.legacyObj);
+    }
+
+    @Override
+    public void draw(GuiContext context)
+    {
+        this.area.draw(0xaa000000);
+
+        super.draw(context);
+    }
+}

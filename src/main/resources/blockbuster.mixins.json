@@ -1,0 +1,30 @@
+{
+	"required": true,
+	"package": "mchorse.blockbuster.mixin",
+	"compatibilityLevel": "JAVA_17",
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"mixins": [
+		"BlockEntityMixin",
+		"BlockItemMixin",
+		"BowItemMixin",
+		"BucketItemMixin",
+		"CommandManagerMixin",
+		"EntityMixin",
+		"EntityStepSoundAccessor",
+		"LevelPropertiesAccessor",
+		"LivingEntityAccessor",
+		"MobEntityMorphTargetMixin",
+		"PlayerManagerAccessor",
+		"PlayerEntityMorphDataMixin",
+		"PlayerEntityMorphingMixin",
+		"PlayerEntityPlaybackTickMixin",
+		"PlayerEntityRecordingMixin",
+		"PlayerInventoryPickupMixin",
+		"ServerPlayerEntityCameraMixin",
+		"ServerPlayerEntityMixin",
+		"ServerWorldMixin",
+		"WorldMixin"
+	]
+}

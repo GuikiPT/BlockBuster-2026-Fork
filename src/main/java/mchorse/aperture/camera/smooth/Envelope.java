@@ -1,0 +1,137 @@
+package mchorse.aperture.camera.smooth;
+
+import mchorse.aperture.Aperture;
+import mchorse.aperture.camera.data.StructureBase;
+import mchorse.aperture.camera.values.ValueInterpolation;
+import mchorse.aperture.camera.values.ValueKeyframeChannel;
+import mchorse.mclib.config.values.ValueBoolean;
+import mchorse.mclib.config.values.ValueFloat;
+import mchorse.mclib.utils.Interpolations;
+import mchorse.mclib.utils.MathUtils;
+
+/**
+ * Per-modifier envelope model (P179; registered into
+ * {@code AbstractModifier} by P174).
+ *
+ * Port notes: channel pre-seeded {@code (0,0)}–{@code (Aperture.duration,1)};
+ * keyframe mode clamps 0..1; interpolation mode shapes
+ * {@code Interpolations.envelope}; {@code breakDown} shifts both halves
+ * (consumed by {@code AbstractFixture.breakDown}). Verbatim otherwise.
+ *
+ * Legacy source: .tools/legacy-src/aperture/src/main/java/mchorse/aperture/camera/smooth/Envelope.java
+ */
+public class Envelope extends StructureBase
+{
+    public final ValueBoolean enabled = new ValueBoolean("enabled");
+    public final ValueBoolean relative = new ValueBoolean("relative", true);
+
+    public final ValueFloat startX = new ValueFloat("startX");
+    public final ValueFloat startDuration = new ValueFloat("startDuration", 10);
+    public final ValueFloat endX = new ValueFloat("endX");
+    public final ValueFloat endDuration = new ValueFloat("endDuration", 10);
+
+    public final ValueInterpolation interpolation = new ValueInterpolation("interpolation");
+
+    public final ValueBoolean keyframes = new ValueBoolean("keyframes");
+    public final ValueKeyframeChannel channel = new ValueKeyframeChannel("channel");
+
+    public final ValueBoolean visible = new ValueBoolean("visible");
+
+    public Envelope()
+    {
+        this.register(this.enabled);
+        this.register(this.relative);
+        this.register(this.startX);
+        this.register(this.startDuration);
+        this.register(this.endX);
+        this.register(this.endDuration);
+        this.register(this.interpolation);
+        this.register(this.keyframes);
+        this.register(this.channel);
+        this.register(this.visible);
+
+        this.channel.get().insert(0, 0);
+        this.channel.get().insert(Aperture.duration.get(), 1);
+    }
+
+    public Envelope copy()
+    {
+        Envelope envelope = new Envelope();
+
+        envelope.copy(this);
+
+        return envelope;
+    }
+
+    public float getStartX(long duration)
+    {
+        return this.startX.get();
+    }
+
+    public float getStartDuration(long duration)
+    {
+        return this.startX.get() + this.startDuration.get();
+    }
+
+    public float getEndX(long duration)
+    {
+        return this.relative.get() ? duration - this.endX.get() : this.endX.get();
+    }
+
+    public float getEndDuration(long duration)
+    {
+        return this.relative.get() ? duration - this.endX.get() - this.endDuration.get() : this.endX.get() - this.endDuration.get();
+    }
+
+    public float factorEnabled(long duration, float tick)
+    {
+        if (!this.enabled.get())
+        {
+            return 1;
+        }
+
+        return this.factor(duration, tick);
+    }
+
+    public float factor(long duration, float tick)
+    {
+        float envelope = 0;
+
+        if (this.keyframes.get())
+        {
+            if (!this.channel.get().isEmpty())
+            {
+                envelope = MathUtils.clamp((float) this.channel.get().interpolate(tick), 0, 1);
+            }
+        }
+        else
+        {
+            float startX = this.startX.get();
+
+            envelope = Interpolations.envelope(tick, startX, startX + this.startDuration.get(), this.getEndDuration(duration), this.getEndX(duration));
+            envelope = this.interpolation.get().interpolate(0, 1, envelope);
+        }
+
+        return envelope;
+    }
+
+    public void breakDown(Envelope original, long offset, long duration)
+    {
+        if (original.relative.get())
+        {
+            original.endX.set(original.endX.get() - (duration - offset));
+        }
+        else
+        {
+            original.endX.set(original.endX.get() + offset);
+        }
+
+        this.channel.get().moveX(-offset);
+        this.startX.set(this.startX.get() - offset);
+
+        if (!this.relative.get())
+        {
+            this.endX.set(this.endX.get() - offset);
+        }
+    }
+}

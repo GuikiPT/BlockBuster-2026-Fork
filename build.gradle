@@ -1,0 +1,169 @@
+plugins {
+	id 'fabric-loom' version '1.6-SNAPSHOT'
+}
+
+// Release version is `mod_version` plus the game version, so the shipped jar is
+// `blockbuster-3.0.0-port-1.20.1.jar`.
+//
+// The P216 release freeze had dropped that suffix (bare `blockbuster-3.0.0-port
+// .jar`) because there was only ever one target. Now that the port is built for
+// more than one game version, a bare name means the 1.20.4 and 1.20.1 branches
+// both emit an identically-named jar — indistinguishable in a mods folder or on
+// a download page, and one silently overwrites the other in build/libs. The
+// suffix is back for that reason, matching the bbs-fs scheme.
+//
+// Integrators: the jar filename changed again, and `fabric.mod.json`'s version
+// string follows it (processResources expands ${version}).
+version = project.mod_version + "-" + project.minecraft_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"blockbuster" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+
+	accessWidenerPath.set(file("src/main/resources/blockbuster.accesswidener"))
+}
+
+// S21 P218: the only third-party mod maven this build talks to. `exclusiveContent`
+// pins it to the `maven.modrinth` group so no other coordinate can ever be
+// resolved through it (and so Fabric/Mojang lookups never round-trip to Modrinth).
+repositories {
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = "Modrinth"
+				url = "https://api.modrinth.com/maven"
+			}
+		}
+		filter {
+			includeGroup "maven.modrinth"
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	// Bundled javax.vecmath (P13 decision): legacy McLib/Blockbuster matrix math
+	// keeps its vecmath signatures for diff-ability against .tools/legacy-src;
+	// JOML conversion happens only at the MC render boundary. `include` nests
+	// the jar inside the mod jar (jar-in-jar).
+	implementation "javax.vecmath:vecmath:1.5.2"
+	include "javax.vecmath:vecmath:1.5.2"
+
+	// S21 P218 — Iris, compile-only, pinned to exactly one build.
+	//
+	// This is the *first and only* third-party mod dependency in the build, and
+	// it deliberately breaks the reflection-only precedent P217/P217.1 set
+	// (S21 open questions 2 and 9). Shader-bound Aperture curves have to *read*
+	// Iris types — `CustomUniforms.Builder`, `CachedUniform`, the jcpp
+	// preprocessor — which a `java.lang.reflect.Proxy` cannot fake the way
+	// `IrisPbrGifBridge` fakes `PBRTextureLoader`.
+	//
+	// `modClientCompileOnly`, not `modImplementation`: Iris is never on the
+	// runtime classpath, is not bundled, and is not declared in
+	// `fabric.mod.json` `depends`. Everything that touches an Iris type sits
+	// behind `blockbuster.iris.mixins.json`, whose `IrisMixinPlugin` refuses to
+	// apply a single mixin unless Iris is loaded *and* every pinned internal
+	// resolves — so a mismatched Iris build disables shader curves and logs,
+	// exactly like legacy's "Do not support this version of Optifine!".
+	//
+	// Version pinning (open question 2, closed): ONE version, not a compat
+	// matrix. `iris_version` in gradle.properties is the single place to bump;
+	// `IrisMixinPlugin.IRIS_VERSION` pins the same string.
+	//
+	// Build cost, measured: the artifact is already in the shared Gradle cache
+	// and Loom's remap output is cached under `.gradle/loom-cache`, so a warm
+	// build pays nothing. A cold build pays one ~4 MB Modrinth fetch plus one
+	// Loom source-remap of that jar (intermediary -> yarn), which is a one-off
+	// of roughly 20-30 s on this machine and never recurs.
+	modClientCompileOnly "maven.modrinth:iris:${project.iris_version}"
+}
+
+processResources {
+	inputs.property "version", project.version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": project.version
+	}
+}
+
+// This project has no test sources. The Java plugin still creates the test
+// task graph and wires `check` -> `test`, so disable it outright and keep
+// `build` off that path entirely.
+tasks.matching {
+	it.name in ["test", "compileTestJava", "processTestResources", "testClasses"]
+}.configureEach {
+	enabled = false
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 17
+}
+
+java {
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
+}
+
+jar {
+	// P216 release freeze: deterministic archives so a clean rebuild is
+	// byte-reproducible (no embedded timestamps, stable entry order).
+	preserveFileTimestamps = false
+	reproducibleFileOrder = true
+
+	// GPLv3 requires the license text to travel with the combined work; the
+	// third-party attribution (McLib/Metamorph MIT, Aperture GPLv3, open_imaging
+	// Apache-2.0) ships alongside it.
+	from("LICENSE") {
+		rename { "${it}_${project.base.archivesName.get()}"}
+	}
+	from("ATTRIBUTION.md") {
+		rename { "${it}_${project.base.archivesName.get()}"}
+	}
+}
+
+// DEV convenience (user-requested): after every `build`, drop the remapped
+// mod jar into the local MultiMC 1.20.4 test instance, replacing any older
+// blockbuster jar, so in-game testing needs no manual copy. Skips silently
+// when the instance folder doesn't exist (CI/other machines).
+def multimcMods = new File(System.getProperty('user.home'),
+	'.local/share/multimc/instances/1.20.4/.minecraft/mods')
+
+tasks.register('installToMultiMC') {
+	dependsOn tasks.named('remapJar')
+	onlyIf { multimcMods.isDirectory() }
+	doLast {
+		def jarFile = tasks.remapJar.archiveFile.get().asFile
+
+		multimcMods.listFiles().findAll {
+			it.name.startsWith('blockbuster-') && it.name.endsWith('.jar')
+		}.each { it.delete() }
+
+		copy {
+			from jarFile
+			into multimcMods
+		}
+
+		println "Installed ${jarFile.name} -> ${multimcMods}"
+	}
+}
+
+tasks.named('build') {
+	finalizedBy 'installToMultiMC'
+}

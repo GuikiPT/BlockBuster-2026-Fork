@@ -1,0 +1,38 @@
+{
+	"required": true,
+	"package": "mchorse.blockbuster.mixin.client",
+	"compatibilityLevel": "JAVA_17",
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"client": [
+		"BackgroundRendererCurveMixin",
+		"BackgroundRendererOutsideSkyMixin",
+		"CameraMixin",
+		"ChatHudMixin",
+		"ClientWorldCurveMixin",
+		"DebugHudMixin",
+		"EntityPrevPrevPosMixin",
+		"GameRendererMixin",
+		"InGameHudMixin",
+		"IntegratedServerCaptureMixin",
+		"ItemRendererHolderMixin",
+		"KeyBindingKeyMapAccessor",
+		"LivingEntityRendererGifMixin",
+		"LivingEntityRendererOutsideLabelMixin",
+		"MinecraftClientMixin",
+		"MouseMixin",
+		"PlayerEntityRendererArmPoseMixin",
+		"ReloadableResourceManagerImplMixin",
+		"RenderTickCounterMixin",
+		"TextureManagerAccessor",
+		"WindowMixin",
+		"WorldCelestialCurveMixin",
+		"WorldRendererLightmapMixin",
+		"WorldRendererMixin",
+		"WorldRendererOutsidePlayerMixin",
+		"WorldRendererParticlesMixin",
+		"ScreenshotRecorderMixin"
+	],
+	"refmap": "client-blockbuster-refmap.json"
+}

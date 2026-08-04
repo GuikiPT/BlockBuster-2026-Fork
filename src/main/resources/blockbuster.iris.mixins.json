@@ -1,0 +1,19 @@
+{
+	"required": false,
+	"package": "mchorse.blockbuster.mixin.client.iris",
+	"compatibilityLevel": "JAVA_17",
+	"plugin": "mchorse.blockbuster.mixin.client.iris.IrisMixinPlugin",
+	"injectors": {
+		"defaultRequire": 0
+	},
+	"client": [
+		"CustomUniformsAccessor",
+		"CustomUniformsBuilderMixin",
+		"IrisPackLifecycleMixin",
+		"JcppProcessorMixin",
+		"PackDirectivesMixin",
+		"ProgramUniformsMixin",
+		"ShaderPackOptionsMixin"
+	],
+	"refmap": "client-blockbuster-refmap.json"
+}

@@ -1,0 +1,320 @@
+package mchorse.metamorph.client.gui.editor;
+
+import mchorse.blockbuster.client.compat.iris.IrisCompat;
+import mchorse.mclib.client.gui.framework.elements.GuiScrollElement;
+import mchorse.mclib.client.gui.framework.elements.buttons.GuiButtonElement;
+import mchorse.mclib.client.gui.framework.elements.buttons.GuiCirculateElement;
+import mchorse.mclib.client.gui.framework.elements.buttons.GuiToggleElement;
+import mchorse.mclib.client.gui.framework.elements.input.GuiKeybindElement;
+import mchorse.mclib.client.gui.framework.elements.input.GuiTextElement;
+import mchorse.mclib.client.gui.framework.elements.input.GuiTrackpadElement;
+import mchorse.mclib.client.gui.framework.elements.list.GuiStringListElement;
+import mchorse.mclib.client.gui.framework.elements.utils.GuiContext;
+import mchorse.mclib.client.gui.framework.elements.utils.GuiDraw;
+import mchorse.mclib.client.gui.utils.Elements;
+import mchorse.mclib.client.gui.utils.LegacyKeyCodes;
+import mchorse.mclib.client.gui.utils.keys.IKey;
+import mchorse.metamorph.api.MorphManager;
+import mchorse.metamorph.api.MorphSettings;
+import mchorse.metamorph.api.abilities.IAbility;
+import mchorse.metamorph.api.morphs.AbstractMorph;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.resource.language.I18n;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.StringNbtReader;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Default morph editor panel (port of Metamorph 1.4's
+ * {@code GuiSettingsPanel}, roadmap P59).
+ *
+ * <p>Left column: reset (clears forced settings, reapplies the manager's
+ * settings), keybind capture (ESC clears to -1), display name, health/speed
+ * trackpads, multi-select ability list plus single-select attack and action
+ * lists (all written through {@link AbstractMorph#forceEditSettings}). Right
+ * column: hitbox enable/width/height/sneakingHeight/eye, plus an Optifine shadow
+ * toggle that appears only when that mod is present.
+ * Bottom: a raw-NBT text field that shows a red label on parse error and
+ * never throws.</p>
+ */
+public class GuiSettingsPanel extends GuiMorphPanel<AbstractMorph, GuiAbstractMorph>
+{
+    public GuiScrollElement left;
+
+    public GuiKeybindElement keybind;
+    public GuiButtonElement reset;
+    public GuiTextElement displayName;
+    public GuiStringListElement abilities;
+    public GuiStringListElement attack;
+    public GuiStringListElement action;
+    public GuiTrackpadElement health;
+    public GuiTrackpadElement speed;
+
+    public GuiScrollElement right;
+
+    public GuiToggleElement hitboxEnabled;
+    public GuiTrackpadElement hitboxWidth;
+    public GuiTrackpadElement hitboxHeight;
+    public GuiTrackpadElement hitboxSneakingHeight;
+    public GuiTrackpadElement hitboxEyePosition;
+
+    public GuiCirculateElement shadowOption;
+
+    public GuiTextElement data;
+    public boolean error;
+
+    public GuiSettingsPanel(MinecraftClient mc, GuiAbstractMorph editor)
+    {
+        super(mc, editor);
+
+        this.left = new GuiScrollElement(mc);
+        this.left.scroll.opposite = true;
+        this.left.cancelScrollEdge();
+        this.left.flex().relative(this).w(130).h(1F).column(5).vertical().stretch().scroll().height(20).padding(10);
+
+        this.keybind = new GuiKeybindElement(mc, (key) ->
+        {
+            /* SEAM: the S3 GuiKeybindElement already maps ESC to KEY_NONE (0)
+             * before firing this callback, whereas legacy checked
+             * Keyboard.KEY_ESCAPE here. Either signal means "clear", and the
+             * morph's cleared keybind sentinel is -1 (not 0), so map both. */
+            if (key == LegacyKeyCodes.KEY_ESCAPE || key == LegacyKeyCodes.KEY_NONE)
+            {
+                this.morph.keybind = -1;
+                this.keybind.setKeybind(-1);
+            }
+            else
+            {
+                this.morph.keybind = key;
+            }
+        });
+        this.keybind.tooltip(IKey.lang("metamorph.gui.editor.keybind_tooltip"));
+        this.reset = new GuiButtonElement(mc, IKey.lang("metamorph.gui.editor.reset"), (button) ->
+        {
+            this.morph.clearForcedSettings();
+
+            MorphManager.INSTANCE.applySettings(this.morph);
+            this.editor.setPanel(this.editor.defaultPanel);
+        });
+        this.displayName = new GuiTextElement(mc, (string) -> this.morph.displayName = string);
+        this.abilities = new GuiStringListElement(mc, (values) ->
+        {
+            this.morph.forceEditSettings((settings) ->
+            {
+                settings.abilities.clear();
+
+                for (String value : values)
+                {
+                    IAbility ability = MorphManager.INSTANCE.abilities.get(value);
+
+                    if (ability != null)
+                    {
+                        settings.abilities.add(ability);
+                    }
+                }
+            });
+            this.updateNBT();
+        });
+        this.abilities.multi().background().tooltip(IKey.lang("metamorph.gui.editor.abilities_tooltip"));
+        this.attack = new GuiStringListElement(mc, (values) ->
+        {
+            this.morph.forceEditSettings((settings) ->
+            {
+                settings.attack = MorphManager.INSTANCE.attacks.get(values.get(0));
+            });
+            this.updateNBT();
+        });
+        this.attack.background();
+        this.action = new GuiStringListElement(mc, (values) ->
+        {
+            this.morph.forceEditSettings((settings) ->
+            {
+                settings.action = MorphManager.INSTANCE.actions.get(values.get(0));
+            });
+            this.updateNBT();
+        });
+        this.action.background();
+        this.health = new GuiTrackpadElement(mc, (value) ->
+        {
+            this.morph.forceEditSettings((settings) ->
+            {
+                settings.health = value.intValue();
+            });
+            this.updateNBT();
+        })
+            .limit(0, Float.POSITIVE_INFINITY, true);
+        this.speed = new GuiTrackpadElement(mc, (value) ->
+        {
+            this.morph.forceEditSettings((settings) ->
+            {
+                settings.speed = value.floatValue();
+            });
+            this.updateNBT();
+        })
+            .limit(0, Float.POSITIVE_INFINITY)
+            .values(0.05F, 0.01F, 0.1F)
+            .increment(0.25F);
+        this.data = new GuiTextElement(mc, 1000000, this::editNBT);
+
+        this.abilities.flex().h(80);
+        this.attack.flex().h(80);
+        this.action.flex().h(80);
+
+        this.data.flex().relative(this).relative(this.left).x(1F, 10).y(1, -30).wTo(this.flex(), 1F, -10);
+
+        this.left.add(this.reset);
+        this.left.add(Elements.label(IKey.lang("metamorph.gui.editor.keybind")).marginTop(8), this.keybind);
+        this.left.add(Elements.label(IKey.lang("metamorph.gui.editor.display_name")).marginTop(8), this.displayName);
+        this.left.add(Elements.label(IKey.lang("metamorph.gui.editor.health")).marginTop(8), this.health);
+        this.left.add(Elements.label(IKey.lang("metamorph.gui.editor.speed")).marginTop(8), this.speed);
+        this.left.add(Elements.label(IKey.lang("metamorph.gui.editor.abilities")).marginTop(8), this.abilities);
+        this.left.add(Elements.label(IKey.lang("metamorph.gui.editor.attack")).marginTop(8), this.attack);
+        this.left.add(Elements.label(IKey.lang("metamorph.gui.editor.action")).marginTop(8), this.action);
+
+        this.right = new GuiScrollElement(mc);
+        this.right.flex().relative(this).x(1F).w(130).h(1F).anchorX(1F).column(5).vertical().stretch().scroll().height(20).padding(10);
+
+        this.hitboxEnabled = new GuiToggleElement(mc, IKey.lang("metamorph.gui.editor.hitbox.enabled"), (b) -> this.morph.hitbox.enabled = b.isToggled());
+        this.hitboxWidth = new GuiTrackpadElement(mc, (value) -> this.morph.hitbox.width = value.floatValue());
+        this.hitboxWidth.limit(0.01, Integer.MAX_VALUE).tooltip(IKey.lang("metamorph.gui.editor.hitbox.width"));
+        this.hitboxHeight = new GuiTrackpadElement(mc, (value) -> this.morph.hitbox.height = value.floatValue());
+        this.hitboxHeight.limit(0.01, Integer.MAX_VALUE).tooltip(IKey.lang("metamorph.gui.editor.hitbox.height"));
+        this.hitboxSneakingHeight = new GuiTrackpadElement(mc, (value) -> this.morph.hitbox.sneakingHeight = value.floatValue());
+        this.hitboxSneakingHeight.limit(0.01, Integer.MAX_VALUE).tooltip(IKey.lang("metamorph.gui.editor.hitbox.sneaking_height"));
+        this.hitboxEyePosition = new GuiTrackpadElement(mc, (value) -> this.morph.hitbox.eye = value.floatValue());
+        this.hitboxEyePosition.limit(0.01, Integer.MAX_VALUE).tooltip(IKey.lang("metamorph.gui.editor.hitbox.eye_tooltip"));
+
+        this.right.add(this.hitboxEnabled);
+        this.right.add(Elements.label(IKey.lang("metamorph.gui.editor.hitbox.size")).marginTop(8), this.hitboxWidth, this.hitboxHeight, this.hitboxSneakingHeight);
+        this.right.add(Elements.label(IKey.lang("metamorph.gui.editor.hitbox.eye")).marginTop(8), this.hitboxEyePosition);
+
+        /* Optifine shadowpass control */
+        this.shadowOption = new GuiCirculateElement(mc, (element) ->
+        {
+            this.morph.forceEditSettings((settings) ->
+            {
+                settings.shadowOption = element.getValue();
+            });
+            this.updateNBT();
+        });
+        for (OptifineShadowOption option : OptifineShadowOption.values())
+        {
+            this.shadowOption.addLabel(IKey.lang("metamorph.gui.editor.shadow." + option.name().toLowerCase()));
+        }
+
+        if (isOptifineLoaded())
+        {
+            this.right.add(Elements.label(IKey.str("Optifine")).marginTop(8), this.shadowOption);
+        }
+
+        this.add(this.left, this.right, this.data);
+    }
+
+    /**
+     * Legacy gated the Optifine section on
+     * {@code Class.forName("net.optifine.shaders.Shaders")}; the 1.20.4 shader
+     * stack is Iris, so P217 routes the probe through {@link IrisCompat}. The
+     * section header still reads "Optifine" — it labels the
+     * {@code shadowOption} setting, whose name and serialized values are a
+     * format contract, not the mod that happens to provide the shadow pass.
+     */
+    private static boolean isOptifineLoaded()
+    {
+        return IrisCompat.isLoaded();
+    }
+
+    @Override
+    public void fillData(AbstractMorph morph)
+    {
+        super.fillData(morph);
+
+        this.abilities.clear();
+        this.abilities.add(MorphManager.INSTANCE.abilities.keySet());
+        this.attack.clear();
+        this.attack.add(MorphManager.INSTANCE.attacks.keySet());
+        this.action.clear();
+        this.action.add(MorphManager.INSTANCE.actions.keySet());
+
+        this.hitboxEnabled.toggled(morph.hitbox.enabled);
+        this.hitboxWidth.setValue(morph.hitbox.width);
+        this.hitboxHeight.setValue(morph.hitbox.height);
+        this.hitboxSneakingHeight.setValue(morph.hitbox.sneakingHeight);
+        this.hitboxEyePosition.setValue(morph.hitbox.eye);
+
+        this.shadowOption.setValue(morph.getSettings().shadowOption);
+    }
+
+    public void updateNBT()
+    {
+        NbtCompound tag = new NbtCompound();
+
+        this.morph.toNBT(tag);
+        this.data.setText(tag.toString());
+    }
+
+    public void editNBT(String str)
+    {
+        try
+        {
+            this.morph.fromNBT(StringNbtReader.parse(str));
+            this.error = false;
+        }
+        catch (Exception e)
+        {
+            this.error = true;
+        }
+    }
+
+    @Override
+    public void startEditing()
+    {
+        super.startEditing();
+
+        this.error = false;
+
+        this.updateNBT();
+
+        this.keybind.setKeybind(morph.keybind);
+        this.displayName.setText(morph.displayName);
+        this.health.setValue(morph.getSettings().health);
+        this.speed.setValue(morph.getSettings().speed);
+
+        List<String> abilities = new ArrayList<String>();
+
+        for (IAbility ability : morph.getSettings().abilities)
+        {
+            String key = MorphSettings.getKey(MorphManager.INSTANCE.abilities, ability);
+
+            if (key != null)
+            {
+                abilities.add(key);
+            }
+        }
+
+        this.abilities.sort();
+        this.attack.sort();
+        this.action.sort();
+
+        this.abilities.setCurrent(abilities);
+        this.attack.setCurrent(MorphSettings.getKey(MorphManager.INSTANCE.attacks, morph.getSettings().attack));
+        this.action.setCurrent(MorphSettings.getKey(MorphManager.INSTANCE.actions, morph.getSettings().action));
+    }
+
+    @Override
+    public void draw(GuiContext context)
+    {
+        super.draw(context);
+
+        if (this.data.isVisible())
+        {
+            GuiDraw.drawStringWithShadow(this.font, I18n.translate("metamorph.gui.panels.nbt_data"), this.data.area.x, this.data.area.y - 12, this.error ? 0xffff3355 : 0xffffff);
+        }
+    }
+
+    public enum OptifineShadowOption
+    {
+        ALL, NOSHADOW, ONLYSHADOW
+    }
+}

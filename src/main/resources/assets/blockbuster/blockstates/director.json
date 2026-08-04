@@ -1,0 +1,8 @@
+{
+    "variants": {
+        "hidden=false,playing=true":  { "model": "blockbuster:block/director_play" },
+        "hidden=false,playing=false": { "model": "blockbuster:block/director_stop" },
+        "hidden=true,playing=true":   { "model": "blockbuster:block/director_play" },
+        "hidden=true,playing=false":  { "model": "blockbuster:block/director_stop" }
+    }
+}

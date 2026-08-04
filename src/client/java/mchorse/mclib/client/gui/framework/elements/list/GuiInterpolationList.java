@@ -1,0 +1,45 @@
+package mchorse.mclib.client.gui.framework.elements.list;
+
+import mchorse.mclib.utils.Interpolation;
+import net.minecraft.client.MinecraftClient;
+
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.function.Consumer;
+
+/**
+ * Interpolations list
+ *
+ * (Port of McLib 2.4.3's {@code GuiInterpolationList}, roadmap P35.)
+ */
+public class GuiInterpolationList extends GuiListElement<Interpolation>
+{
+    public GuiInterpolationList(MinecraftClient mc, Consumer<List<Interpolation>> callback)
+    {
+        super(mc, callback);
+
+        this.scroll.scrollItemSize = 16;
+
+        for (Interpolation interp : Interpolation.values())
+        {
+            this.add(interp);
+        }
+
+        this.background().cancelScrollEdge().sort();
+    }
+
+    @Override
+    protected boolean sortElements()
+    {
+        Collections.sort(this.list, Comparator.comparing(o -> o.key));
+
+        return true;
+    }
+
+    @Override
+    protected String elementToString(Interpolation element)
+    {
+        return element.getName();
+    }
+}

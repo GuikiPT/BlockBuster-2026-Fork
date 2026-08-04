@@ -1,0 +1,195 @@
+package mchorse.blockbuster.api.formats.vox;
+
+import mchorse.blockbuster.api.formats.Mesh;
+import mchorse.blockbuster.api.formats.vox.data.Vox;
+
+import org.joml.Matrix3f;
+import org.joml.Vector3f;
+
+/**
+ * Direct port of Blockbuster 2.7.2's {@code api/formats/vox/VoxBuilder.java}
+ * (roadmap P66) — the naive-culling voxel mesher.
+ *
+ * <p>The legacy class was annotated {@code @SideOnly(Side.CLIENT)} but it is
+ * pure math (no GL), so it lives in the main source set to stay
+ * headless-testable; the actual GL upload of the produced {@link Mesh} is wired
+ * up by the VOX renderer in S6 (roadmap P78). {@code javax.vecmath} is replaced
+ * by JOML; the matrix math is mathematically identical.</p>
+ */
+public class VoxBuilder
+{
+    public Matrix3f transform;
+    public Vector3f vector = new Vector3f();
+
+    private Vector3f right;
+    private Vector3f left;
+    private Vector3f front;
+    private Vector3f back;
+    private Vector3f bottom;
+    private Vector3f top;
+
+    public VoxBuilder(Matrix3f transform)
+    {
+        this.transform = transform;
+
+        this.right = this.processNormal(new Vector3f(-1, 0, 0));
+        this.left = this.processNormal(new Vector3f(1, 0, 0));
+        this.front = this.processNormal(new Vector3f(0, 0, 1));
+        this.back = this.processNormal(new Vector3f(0, 0, -1));
+        this.bottom = this.processNormal(new Vector3f(0, -1, 0));
+        this.top = this.processNormal(new Vector3f(0, 1, 0));
+    }
+
+    private Vector3f processNormal(Vector3f normal)
+    {
+        /* Transform the normal */
+        normal.set(normal.x, normal.z, normal.y);
+        this.transform.transform(normal);
+        normal.set(normal.x, normal.z, normal.y);
+        normal.normalize();
+
+        return normal;
+    }
+
+    public Mesh build(Vox vox)
+    {
+        /* Worst case scenario */
+        Mesh mesh = new Mesh(vox.blocks * 12);
+
+        mesh.triangles = 0;
+
+        for (int x = 0; x < vox.x; x++)
+        {
+            for (int y = 0; y < vox.y; y++)
+            {
+                for (int z = 0; z < vox.z; z++)
+                {
+                    int voxel = vox.voxels[vox.toIndex(x, y, z)];
+
+                    if (voxel != 0)
+                    {
+                        this.buildVertex(mesh, x, y, z, voxel, vox);
+                    }
+                }
+            }
+        }
+
+        return mesh;
+    }
+
+    private void buildVertex(Mesh mesh, int x, int y, int z, int voxel, Vox vox)
+    {
+        boolean top = vox.has(x, y + 1, z);
+        boolean bottom = vox.has(x, y - 1, z);
+        boolean left = vox.has(x + 1, y, z);
+        boolean right = vox.has(x - 1, y, z);
+        boolean front = vox.has(x, y, z + 1);
+        boolean back = vox.has(x, y, z - 1);
+
+        if (!top)
+        {
+            Vector3f normal = this.top;
+
+            this.add(mesh, vox, x, y + 1, z, voxel, -0.5F, -0.5F, normal);
+            this.add(mesh, vox, x + 1, y + 1, z, voxel, 0.5F, -0.5F, normal);
+            this.add(mesh, vox, x, y + 1, z + 1, voxel, -0.5F, 0.5F, normal);
+            this.add(mesh, vox, x, y + 1, z + 1, voxel, -0.5F, 0.5F, normal);
+            this.add(mesh, vox, x + 1, y + 1, z, voxel, 0.5F, -0.5F, normal);
+            this.add(mesh, vox, x + 1, y + 1, z + 1, voxel, 0.5F, 0.5F, normal);
+        }
+
+        if (!bottom)
+        {
+            Vector3f normal = this.bottom;
+
+            this.add(mesh, vox, x, y, z, voxel, -0.5F, -0.5F, normal);
+            this.add(mesh, vox, x, y, z + 1, voxel, -0.5F, 0.5F, normal);
+            this.add(mesh, vox, x + 1, y, z, voxel, 0.5F, -0.5F, normal);
+            this.add(mesh, vox, x, y, z + 1, voxel, -0.5F, 0.5F, normal);
+            this.add(mesh, vox, x + 1, y, z + 1, voxel, 0.5F, 0.5F, normal);
+            this.add(mesh, vox, x + 1, y, z, voxel, 0.5F, -0.5F, normal);
+        }
+
+        if (!left)
+        {
+            Vector3f normal = this.left;
+
+            this.add(mesh, vox, x + 1, y, z, voxel, -0.5F, -0.5F, normal);
+            this.add(mesh, vox, x + 1, y, z + 1, voxel, -0.5F, 0.5F, normal);
+            this.add(mesh, vox, x + 1, y + 1, z, voxel, 0.5F, -0.5F, normal);
+            this.add(mesh, vox, x + 1, y + 1, z, voxel, 0.5F, -0.5F, normal);
+            this.add(mesh, vox, x + 1, y, z + 1, voxel, -0.5F, 0.5F, normal);
+            this.add(mesh, vox, x + 1, y + 1, z + 1, voxel, 0.5F, 0.5F, normal);
+        }
+
+        if (!right)
+        {
+            Vector3f normal = this.right;
+
+            this.add(mesh, vox, x, y, z, voxel, -0.5F, -0.5F, normal);
+            this.add(mesh, vox, x, y + 1, z, voxel, 0.5F, -0.5F, normal);
+            this.add(mesh, vox, x, y, z + 1, voxel, -0.5F, 0.5F, normal);
+            this.add(mesh, vox, x, y + 1, z, voxel, 0.5F, -0.5F, normal);
+            this.add(mesh, vox, x, y + 1, z + 1, voxel, 0.5F, 0.5F, normal);
+            this.add(mesh, vox, x, y, z + 1, voxel, -0.5F, 0.5F, normal);
+        }
+
+        if (!front)
+        {
+            Vector3f normal = this.front;
+
+            this.add(mesh, vox, x, y, z + 1, voxel, -0.5F, -0.5F, normal);
+            this.add(mesh, vox, x, y + 1, z + 1, voxel, -0.5F, 0.5F, normal);
+            this.add(mesh, vox, x + 1, y, z + 1, voxel, 0.5F, -0.5F, normal);
+            this.add(mesh, vox, x, y + 1, z + 1, voxel, -0.5F, 0.5F, normal);
+            this.add(mesh, vox, x + 1, y + 1, z + 1, voxel, 0.5F, 0.5F, normal);
+            this.add(mesh, vox, x + 1, y, z + 1, voxel, 0.5F, -0.5F, normal);
+        }
+
+        if (!back)
+        {
+            Vector3f normal = this.back;
+
+            this.add(mesh, vox, x, y, z, voxel, -0.5F, -0.5F, normal);
+            this.add(mesh, vox, x + 1, y, z, voxel, 0.5F, -0.5F, normal);
+            this.add(mesh, vox, x, y + 1, z, voxel, -0.5F, 0.5F, normal);
+            this.add(mesh, vox, x, y + 1, z, voxel, -0.5F, 0.5F, normal);
+            this.add(mesh, vox, x + 1, y, z, voxel, 0.5F, -0.5F, normal);
+            this.add(mesh, vox, x + 1, y + 1, z, voxel, 0.5F, 0.5F, normal);
+        }
+    }
+
+    private void add(Mesh mesh, Vox vox, int x, int y, int z, int voxel, float offsetU, float offsetV, Vector3f normal)
+    {
+        int tris = mesh.triangles;
+        float u = (voxel + 0.5F + offsetU) / 256F;
+        float v = 0.5F + offsetV;
+
+        Vector3f vertex = this.process(x, y, z, vox);
+        mesh.posData[tris * 3] = vertex.x;
+        mesh.posData[tris * 3 + 1] = vertex.y;
+        mesh.posData[tris * 3 + 2] = vertex.z;
+
+        mesh.normData[tris * 3] = normal.x;
+        mesh.normData[tris * 3 + 1] = normal.y;
+        mesh.normData[tris * 3 + 2] = normal.z;
+
+        mesh.texData[tris * 2] = u;
+        mesh.texData[tris * 2 + 1] = v;
+
+        mesh.triangles += 1;
+    }
+
+    private Vector3f process(int x, int y, int z, Vox vox)
+    {
+        int w = (int) (vox.x / 2F);
+        int h = (int) (vox.y / 2F);
+        int d = (int) (vox.z / 2F);
+
+        this.vector.set(x - w, z - d, y - h);
+        this.transform.transform(this.vector);
+        this.vector.set(this.vector.x, this.vector.z, this.vector.y);
+
+        return this.vector;
+    }
+}

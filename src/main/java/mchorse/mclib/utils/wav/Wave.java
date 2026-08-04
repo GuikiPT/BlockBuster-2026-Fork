@@ -1,0 +1,122 @@
+package mchorse.mclib.utils.wav;
+
+import org.lwjgl.openal.AL10;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
+/**
+ * Port of McLib 2.4.3's {@code Wave} (roadmap P18). Legacy
+ * {@code GLAllocation.createDirectByteBuffer} maps to a plain native-order
+ * direct buffer; the {@code AL10} format constants are compile-time constants
+ * (inlined), so this class stays loadable without OpenAL present.
+ */
+public class Wave
+{
+    public int audioFormat;
+    public int numChannels;
+    public int sampleRate;
+    public int byteRate;
+    public int blockAlign;
+    public int bitsPerSample;
+
+    public byte[] data;
+
+    public Wave(int audioFormat, int numChannels, int sampleRate, int byteRate, int blockAlign, int bitsPerSample, byte[] data)
+    {
+        this.audioFormat = audioFormat;
+        this.numChannels = numChannels;
+        this.sampleRate = sampleRate;
+        this.byteRate = byteRate;
+        this.blockAlign = blockAlign;
+        this.bitsPerSample = bitsPerSample;
+        this.data = data;
+    }
+
+    public int getBytesPerSample()
+    {
+        return this.bitsPerSample / 8;
+    }
+
+    public float getDuration()
+    {
+        return this.data.length / this.numChannels / this.getBytesPerSample() / (float) this.sampleRate;
+    }
+
+    public int getALFormat()
+    {
+        int bytes = this.getBytesPerSample();
+
+        if (bytes == 1)
+        {
+            if (this.numChannels == 2)
+            {
+                return AL10.AL_FORMAT_STEREO8;
+            }
+            else if (this.numChannels == 1)
+            {
+                return AL10.AL_FORMAT_MONO8;
+            }
+        }
+        else if (bytes == 2)
+        {
+            if (this.numChannels == 2)
+            {
+                return AL10.AL_FORMAT_STEREO16;
+            }
+            else if (this.numChannels == 1)
+            {
+                return AL10.AL_FORMAT_MONO16;
+            }
+        }
+
+        throw new IllegalStateException("Current WAV file has unusual configuration... channels: " + this.numChannels + ", BPS: " + bytes);
+    }
+
+    public int getScanRegion(float pixelsPerSecond)
+    {
+        return (int) (this.sampleRate / pixelsPerSecond) * this.getBytesPerSample() * this.numChannels;
+    }
+
+    public Wave convertTo16()
+    {
+        final int bytes = 16 / 8;
+
+        int c = this.data.length / this.numChannels / this.getBytesPerSample();
+        int byteRate = c * this.numChannels * bytes ;
+        byte[] data = new byte[byteRate];
+        boolean isFloat = this.getBytesPerSample() == 4;
+
+        Wave wave = new Wave(this.audioFormat, this.numChannels, this.sampleRate, byteRate, bytes * this.numChannels, 16, data);
+
+        ByteBuffer sample = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder());
+        ByteBuffer dataBuffer = ByteBuffer.allocateDirect(data.length).order(ByteOrder.nativeOrder());
+
+        for (int i = 0; i < c * this.numChannels; i++)
+        {
+            sample.clear();
+
+            for (int j = 0; j < this.getBytesPerSample(); j++)
+            {
+                sample.put(this.data[i * this.getBytesPerSample() + j]);
+            }
+
+            if (isFloat)
+            {
+                sample.flip();
+                dataBuffer.putShort((short) (sample.getFloat() * 0xffff / 2));
+            }
+            else
+            {
+                sample.put((byte) 0);
+                sample.flip();
+                dataBuffer.putShort((short) ((int) (sample.getInt() / (0xffffff / 2F) * (0xffff / 2F))));
+            }
+        }
+
+        dataBuffer.flip();
+        dataBuffer.get(data);
+
+        return wave;
+    }
+}

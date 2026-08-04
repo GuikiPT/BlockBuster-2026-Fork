@@ -1,0 +1,34 @@
+package mchorse.blockbuster.network.server.recording.actions;
+
+import mchorse.blockbuster.CommonProxy;
+import mchorse.blockbuster.network.Dispatcher;
+import mchorse.blockbuster.network.common.recording.actions.PacketActions;
+import mchorse.blockbuster.network.common.recording.actions.PacketRequestAction;
+import mchorse.blockbuster.recording.data.Record;
+import mchorse.mclib.network.ServerMessageHandler;
+import net.minecraft.server.network.ServerPlayerEntity;
+
+/**
+ * Replies with a record's full action track (roadmap P117). No permission
+ * gate — legacy behavior.
+ */
+public class ServerHandlerRequestAction extends ServerMessageHandler<PacketRequestAction>
+{
+    @Override
+    public void run(ServerPlayerEntity player, PacketRequestAction message)
+    {
+        Record record = null;
+
+        try
+        {
+            record = CommonProxy.manager.get(message.filename);
+        }
+        catch (Exception e)
+        {}
+
+        if (record != null)
+        {
+            Dispatcher.sendTo(new PacketActions(message.filename, record.actions, message.open), player);
+        }
+    }
+}

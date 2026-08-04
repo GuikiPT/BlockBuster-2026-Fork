@@ -1,0 +1,17 @@
+{
+	"required": true,
+	"package": "mchorse.metamorph.mixin.client",
+	"compatibilityLevel": "JAVA_17",
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"client": [
+		"EntityRendererNameMixin",
+		"KeyboardMorphMixin",
+		"LivingEntityRendererFadeMixin",
+		"LivingEntityRendererFeaturesAccessor",
+		"LivingEntityRendererSelectorMixin",
+		"PlayerEntityRendererMixin"
+	],
+	"refmap": "client-blockbuster-refmap.json"
+}

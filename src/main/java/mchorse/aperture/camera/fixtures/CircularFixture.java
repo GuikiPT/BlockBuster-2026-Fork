@@ -1,0 +1,106 @@
+package mchorse.aperture.camera.fixtures;
+
+import mchorse.aperture.camera.CameraProfile;
+import mchorse.aperture.camera.data.Point;
+import mchorse.aperture.camera.data.Position;
+import mchorse.aperture.camera.values.ValuePoint;
+import mchorse.mclib.config.values.ValueFloat;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.math.MathHelper;
+
+/**
+ * Circular camera fixture (P172).
+ *
+ * Port notes: the asymmetric {@code +0.5} center offset with {@code -0.5}
+ * subtracted only from the x/z <b>output</b>, and the forced
+ * {@code fov=70, roll=0} output are load-bearing visual quirks — verbatim.
+ *
+ * Legacy source: .tools/legacy-src/aperture/src/main/java/mchorse/aperture/camera/fixtures/CircularFixture.java
+ */
+public class CircularFixture extends AbstractFixture
+{
+    /**
+     * Center point of circular fixture
+     */
+    public final ValuePoint start = new ValuePoint("start", new Point(0, 0, 0));
+
+    /**
+     * Start angle offset (in degrees)
+     */
+    public final ValueFloat offset = new ValueFloat("offset", 0);
+
+    /**
+     * Distance (in blocks units) from center point
+     */
+    public final ValueFloat distance = new ValueFloat("distance", 5);
+
+    /**
+     * How much degrees to perform during running
+     */
+    public final ValueFloat circles = new ValueFloat("circles", 360);
+
+    /**
+     * Pitch of the circular fixture
+     */
+    public final ValueFloat pitch = new ValueFloat("pitch", 0);
+
+    public CircularFixture(long duration)
+    {
+        super(duration);
+
+        this.register(this.start);
+        this.register(this.offset);
+        this.register(this.distance);
+        this.register(this.circles);
+        this.register(this.pitch);
+    }
+
+    @Override
+    public void fromPlayer(PlayerEntity player)
+    {
+        this.start.get().set(player);
+        this.pitch.set(player.getPitch());
+    }
+
+    @Override
+    public void applyFixture(long ticks, float partialTicks, float previewPartialTick, CameraProfile profile, Position pos)
+    {
+        float progress = (ticks / (float) this.getDuration()) + (1.0F / this.getDuration() * previewPartialTick);
+        float angle = (float) (Math.toRadians(this.offset.get()) + progress * Math.toRadians(this.circles.get()));
+
+        float distance = this.distance.get();
+        double cos = distance * Math.cos(angle);
+        double sin = distance * Math.sin(angle);
+
+        /* +0.5, because player's position isn't in the entity's center */
+        Point point = this.start.get();
+        double x = point.x + 0.5 + cos;
+        double y = point.y;
+        double z = point.z + 0.5 + sin;
+
+        float yaw = (float) (MathHelper.atan2(sin, cos) * (180D / Math.PI)) - 90.0F;
+
+        pos.point.set(x - 0.5F, y, z - 0.5F);
+        pos.angle.set(MathHelper.wrapDegrees(yaw - 180.0F), this.pitch.get(), 0, 70);
+    }
+
+    @Override
+    public AbstractFixture create(long duration)
+    {
+        return new CircularFixture(duration);
+    }
+
+    @Override
+    protected void breakDownFixture(AbstractFixture original, long offset)
+    {
+        super.breakDownFixture(original, offset);
+
+        CircularFixture circular = (CircularFixture) original;
+
+        float newCircles = circular.circles.get() * (offset / (float) original.getDuration());
+
+        this.offset.set(circular.offset.get() + newCircles);
+        this.circles.set(circular.circles.get() - newCircles);
+        circular.circles.set(newCircles);
+    }
+}

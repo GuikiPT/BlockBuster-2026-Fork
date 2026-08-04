@@ -1,0 +1,20 @@
+{
+    "variants": {
+        "light=0":  { "model": "blockbuster:block/model" },
+        "light=1":  { "model": "blockbuster:block/model" },
+        "light=2":  { "model": "blockbuster:block/model" },
+        "light=3":  { "model": "blockbuster:block/model" },
+        "light=4":  { "model": "blockbuster:block/model" },
+        "light=5":  { "model": "blockbuster:block/model" },
+        "light=6":  { "model": "blockbuster:block/model" },
+        "light=7":  { "model": "blockbuster:block/model" },
+        "light=8":  { "model": "blockbuster:block/model" },
+        "light=9":  { "model": "blockbuster:block/model" },
+        "light=10": { "model": "blockbuster:block/model" },
+        "light=11": { "model": "blockbuster:block/model" },
+        "light=12": { "model": "blockbuster:block/model" },
+        "light=13": { "model": "blockbuster:block/model" },
+        "light=14": { "model": "blockbuster:block/model" },
+        "light=15": { "model": "blockbuster:block/model" }
+    }
+}

@@ -1,0 +1,166 @@
+package mchorse.aperture.client.gui.panels.modules;
+
+import mchorse.aperture.camera.data.InterpolationType;
+import mchorse.aperture.camera.fixtures.PathFixture;
+import mchorse.aperture.client.gui.GuiCameraEditor;
+import mchorse.aperture.client.gui.panels.GuiAbstractFixturePanel;
+import mchorse.aperture.client.gui.panels.GuiPathFixturePanel;
+import mchorse.aperture.client.gui.utils.GuiInterpolationTypeList;
+import mchorse.mclib.client.gui.framework.elements.buttons.GuiButtonElement;
+import mchorse.mclib.client.gui.framework.tooltips.InterpolationTooltip;
+import mchorse.mclib.client.gui.utils.Elements;
+import mchorse.mclib.client.gui.utils.GuiUtils;
+import mchorse.mclib.client.gui.utils.LegacyKeyCodes;
+import mchorse.mclib.client.gui.utils.keys.IKey;
+import mchorse.mclib.utils.IInterpolation;
+import mchorse.mclib.utils.MathUtils;
+import mchorse.mclib.utils.keyframes.KeyframeInterpolations;
+import net.minecraft.client.MinecraftClient;
+
+/**
+ * Path fixture interpolations GUI module
+ *
+ * This module is responsible for changing angle and/or position interpolation
+ * of the path fixture.
+ *
+ * Legacy source: .tools/legacy-src/aperture/src/main/java/mchorse/aperture/client/gui/panels/modules/GuiInterpModule.java
+ */
+public class GuiInterpModule extends GuiAbstractModule
+{
+    public GuiButtonElement pos;
+    public GuiButtonElement angle;
+    public GuiInterpolationTypeList interps;
+
+    public PathFixture fixture;
+    public boolean pickPos = false;
+
+    private GuiPathFixturePanel panel;
+
+    private IInterpolation getInterp(InterpolationType type)
+    {
+        IInterpolation function = type.function;
+
+        if (type == InterpolationType.HERMITE)
+        {
+            function = KeyframeInterpolations.HERMITE;
+        }
+
+        return function;
+    }
+
+    public GuiInterpModule(MinecraftClient mc, GuiCameraEditor editor, GuiPathFixturePanel panel)
+    {
+        super(mc, editor);
+
+        this.panel = panel;
+
+        this.pos = new GuiButtonElement(mc, IKey.lang(""), (b) ->
+        {
+            if (this.interps.hasParent() && this.pickPos)
+            {
+                this.interps.removeFromParent();
+            }
+            else
+            {
+                this.interps.removeFromParent();
+
+                this.pickPos = true;
+                this.interps.setCurrentScroll(this.fixture.interpolation.get());
+
+                this.getParentContainer().add(this.interps);
+                this.interps.flex().relative(this.pos);
+                this.interps.resize();
+            }
+        });
+        this.pos.tooltip(new InterpolationTooltip(1F, 0, () -> this.getInterp(this.fixture.interpolation.get()), null));
+
+        this.angle = new GuiButtonElement(mc, IKey.lang(""), (b) ->
+        {
+            if (this.interps.hasParent() && !this.pickPos)
+            {
+                this.interps.removeFromParent();
+            }
+            else
+            {
+                this.interps.removeFromParent();
+
+                this.pickPos = false;
+                this.interps.setCurrentScroll(this.fixture.interpolationAngle.get());
+
+                this.getParentContainer().add(this.interps);
+                this.interps.flex().relative(this.angle);
+                this.interps.resize();
+            }
+        });
+        this.angle.tooltip(new InterpolationTooltip(1F, 0, () -> this.getInterp(this.fixture.interpolationAngle.get()), null));
+
+        this.interps = new GuiInterpolationTypeList(mc, (interp) ->
+        {
+            if (this.pickPos)
+            {
+                this.editor.postUndo(GuiAbstractFixturePanel.undo(this.editor, this.fixture.interpolation, interp.get(0)));
+                this.pos.label.set(interp.get(0).getKey());
+            }
+            else
+            {
+                this.editor.postUndo(GuiAbstractFixturePanel.undo(this.editor, this.fixture.interpolationAngle, interp.get(0)));
+                this.angle.label.set(interp.get(0).getKey());
+            }
+
+            this.panel.interpolationWasUpdated(this.pickPos);
+        });
+        this.interps.tooltip(new InterpolationTooltip(1F, 0, () -> this.getInterp(this.pickPos ? this.fixture.interpolation.get() : this.fixture.interpolationAngle.get()), null)).markIgnored();
+
+        this.interps.flex().y(1F).w(1F).h(96);
+
+        this.flex().column(5).vertical().stretch().height(20);
+        this.add(Elements.label(IKey.lang("aperture.gui.panels.position")).background(), this.pos);
+        this.add(Elements.label(IKey.lang("aperture.gui.panels.angle")).background(), this.angle);
+
+        this.keys().register(IKey.lang("aperture.gui.panels.keys.path_position"), LegacyKeyCodes.KEY_P, this::togglePosition).held(LegacyKeyCodes.KEY_LCONTROL).active(editor::isFlightDisabled).category(GuiAbstractFixturePanel.CATEGORY);
+        this.keys().register(IKey.lang("aperture.gui.panels.keys.path_angle"), LegacyKeyCodes.KEY_A, this::toggleAngle).held(LegacyKeyCodes.KEY_LCONTROL).active(editor::isFlightDisabled).category(GuiAbstractFixturePanel.CATEGORY);
+    }
+
+    private void togglePosition()
+    {
+        InterpolationType type = this.next(this.fixture.interpolation.get(), this.pos);
+
+        this.editor.postUndo(GuiAbstractFixturePanel.undo(this.editor, this.fixture.interpolation, type));
+    }
+
+    private void toggleAngle()
+    {
+        /* LEGACY BUG (load-bearing): cycles from this.fixture.interpolation
+         * (the POSITION interpolation) instead of interpolationAngle — the
+         * Ctrl+A cycle therefore starts from whatever the position interp
+         * is, not from the current angle interp */
+        InterpolationType type = this.next(this.fixture.interpolation.get(), this.pos);
+
+        this.editor.postUndo(GuiAbstractFixturePanel.undo(this.editor, this.fixture.interpolationAngle, type));
+    }
+
+    private InterpolationType next(InterpolationType interp, GuiButtonElement button)
+    {
+        int factor = GuiUtils.isShiftKeyDown() ? -1 : 1;
+        int index = MathUtils.cycler(interp.ordinal() + factor, 0, InterpolationType.values().length - 1);
+
+        interp = InterpolationType.values()[index];
+        button.label.set(interp.getKey());
+        this.interps.setCurrent(interp);
+        this.editor.updateProfile();
+        GuiUtils.playClick();
+
+        return interp;
+    }
+
+    public void fill(PathFixture fixture)
+    {
+        this.fixture = fixture;
+
+        this.interps.removeFromParent();
+        this.interps.setCurrent(fixture.interpolation.get());
+        this.pos.label.set(this.interps.getCurrentFirst().getKey());
+        this.interps.setCurrent(fixture.interpolationAngle.get());
+        this.angle.label.set(this.interps.getCurrentFirst().getKey());
+    }
+}

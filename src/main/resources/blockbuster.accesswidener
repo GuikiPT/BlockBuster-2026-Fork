@@ -1,0 +1,84 @@
+accessWidener v2 named
+
+# Frame.apply elytra flag: legacy located Entity's FLAGS DataParameter by
+# reflection; the port calls setFlag(FALL_FLYING_FLAG_INDEX, ...) directly.
+accessible method net/minecraft/entity/Entity setFlag (IZ)V
+accessible field net/minecraft/entity/Entity FALL_FLYING_FLAG_INDEX I
+
+# CloseContainerAction: legacy player.closeScreen()
+accessible method net/minecraft/entity/player/PlayerEntity closeHandledScreen ()V
+
+# EntityMorph.onChangeDimension (P53): legacy reassigned the inner entity's
+# world reference directly (this.entity.world = player.world) so animation
+# state survives a dimension change; yarn's Entity.setWorld is protected.
+accessible method net/minecraft/entity/Entity setWorld (Lnet/minecraft/world/World;)V
+
+# EntityMorph.setupHands (P54): legacy found a mob's two "hand" limbs by reading
+# ModelBiped's arm fields, ModelQuadruped's leg2/leg3, or — for anything else —
+# by sorting the model's flat boxList by rotationPointX. 1.20.4 has no flat list
+# and both the quadruped legs and the part-tree roots are protected/private, so
+# the same three branches need these four seams. See EntityMorphArms.
+accessible field net/minecraft/client/render/entity/model/QuadrupedEntityModel leftHindLeg Lnet/minecraft/client/model/ModelPart;
+accessible field net/minecraft/client/render/entity/model/QuadrupedEntityModel rightFrontLeg Lnet/minecraft/client/model/ModelPart;
+
+# EntityMorphLimbParts (P227/P80.2): the body-part pass has to turn a saved limb
+# NAME back into the ModelPart it addresses, so it needs the other four
+# quadruped roots too. AnimalModel hands out roots unnamed, which is exactly why
+# these named fields are the only way to address head/body/leg1..leg4 — the
+# names legacy's ModelQuadruped reflection produced.
+accessible field net/minecraft/client/render/entity/model/QuadrupedEntityModel head Lnet/minecraft/client/model/ModelPart;
+accessible field net/minecraft/client/render/entity/model/QuadrupedEntityModel body Lnet/minecraft/client/model/ModelPart;
+accessible field net/minecraft/client/render/entity/model/QuadrupedEntityModel rightHindLeg Lnet/minecraft/client/model/ModelPart;
+accessible field net/minecraft/client/render/entity/model/QuadrupedEntityModel leftFrontLeg Lnet/minecraft/client/model/ModelPart;
+accessible method net/minecraft/client/render/entity/model/AnimalModel getHeadParts ()Ljava/lang/Iterable;
+accessible method net/minecraft/client/render/entity/model/AnimalModel getBodyParts ()Ljava/lang/Iterable;
+accessible field net/minecraft/client/model/ModelPart children Ljava/util/Map;
+
+# ModelExporter (P74): the entity → JSON model exporter reads a mob model's boxes.
+# 1.12.2's ModelBox exposed posX1..posZ2 publicly and the exporter reflected over
+# ModelBox's private TexturedQuad[] field for UVs; on 1.20.4 the equivalent state is
+# ModelPart.cuboids (private) and Cuboid.sides, whose Quad/Vertex element types are
+# package-private classes even though their own fields are public. The UVs are what
+# recover both a box's texture offset and — since a baked ModelPart no longer carries
+# ModelRenderer.textureWidth/Height — the model's texture size. See ModelExporter.
+accessible field net/minecraft/client/model/ModelPart cuboids Ljava/util/List;
+accessible field net/minecraft/client/model/ModelPart$Cuboid sides [Lnet/minecraft/client/model/ModelPart$Quad;
+accessible class net/minecraft/client/model/ModelPart$Quad
+accessible class net/minecraft/client/model/ModelPart$Vertex
+
+# P200 video capture: swap the client's active framebuffer to a custom-resolution
+# capture target (CaptureFramebuffer). The field is private final; widen it so the
+# adapter can save/reassign it.
+accessible field net/minecraft/client/MinecraftClient framebuffer Lnet/minecraft/client/gl/Framebuffer;
+mutable field net/minecraft/client/MinecraftClient framebuffer Lnet/minecraft/client/gl/Framebuffer;
+
+# P229 model-block shadow: legacy's TileEntityModelRenderer.RenderShadow extended
+# vanilla's Render<Entity> purely to reach doRenderShadowAndFire — i.e. the model
+# block's shadow *is* the vanilla entity shadow, drawn at the block's morph
+# position. On 1.20.4 that drop-shadow lives in EntityRenderDispatcher as a
+# private static helper (and the "should I draw shadows at all" flag legacy read
+# through RenderManager.isRenderShadow() is a private field), so both are widened
+# rather than reimplemented — a hand-rolled copy would be a second shadow that
+# drifts from vanilla's every version. See ModelBlockShadow.
+accessible method net/minecraft/client/render/entity/EntityRenderDispatcher renderShadow (Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;Lnet/minecraft/entity/Entity;FFLnet/minecraft/world/WorldView;F)V
+accessible field net/minecraft/client/render/entity/EntityRenderDispatcher renderShadows Z
+
+# P244 GunShootHandler.blockLeftClick: legacy reflected Minecraft's private
+# leftClickCounter (SRG field_71429_W, MCP fallback) and forced it to 10000 every
+# tick a gun is held while the shoot bind conflicts with attack, so the vanilla
+# left-click never fires. On 1.20.4 the same counter is MinecraftClient
+# .attackCooldown (protected, decremented per tick, gates doAttack() and reset to
+# 0 by handleBlockBreaking(false) — exactly like 1.12.2's leftClickCounter, so
+# the "stuck for 10000 ticks" reading of the constant is wrong on both versions).
+accessible field net/minecraft/client/MinecraftClient attackCooldown I
+
+# Frame.apply playback rotation vs the tracker lerp: on a position-only move
+# packet, 1.20.4's ClientPlayNetworkHandler.onEntity re-arms the rotation lerp
+# with getLerpTargetYaw()/getLerpTargetPitch() — the last SERVER-sent rotation —
+# while 1.12.2's handleEntityMovement passed the entity's current CLIENT
+# rotation. Client-driven playback rotation therefore needs to retarget these
+# standing lerp fields every frame it applies, or tickMovement pulls the head
+# toward the stale server rotation each tick (protected on LivingEntity).
+accessible field net/minecraft/entity/LivingEntity serverYaw D
+accessible field net/minecraft/entity/LivingEntity serverPitch D
+accessible field net/minecraft/entity/LivingEntity serverHeadYaw D

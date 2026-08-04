@@ -1,0 +1,102 @@
+package mchorse.metamorph.client.gui.editor;
+
+import mchorse.mclib.client.gui.framework.elements.GuiElement;
+import mchorse.mclib.client.gui.framework.elements.buttons.GuiButtonElement;
+import mchorse.mclib.client.gui.framework.elements.buttons.GuiToggleElement;
+import mchorse.mclib.client.gui.framework.elements.input.GuiTrackpadElement;
+import mchorse.mclib.client.gui.framework.elements.list.GuiInterpolationList;
+import mchorse.mclib.client.gui.framework.elements.list.GuiListElement;
+import mchorse.mclib.client.gui.framework.tooltips.InterpolationTooltip;
+import mchorse.mclib.client.gui.utils.keys.IKey;
+import mchorse.mclib.utils.Interpolation;
+import mchorse.metamorph.api.morphs.utils.Animation;
+import net.minecraft.client.MinecraftClient;
+
+/**
+ * Reusable animation sub-editor (port of Metamorph 1.4's {@code GuiAnimation},
+ * roadmap P59).
+ *
+ * <p>Edits a morph's {@link Animation}: an animates toggle, an optional
+ * "ignored" toggle, an integer duration trackpad (min 0), and an interpolation
+ * picker (a 96px dropdown list with a live curve tooltip). Every change calls
+ * {@link Animation#reset()} so the live preview restarts from the top.</p>
+ */
+public class GuiAnimation extends GuiElement
+{
+    /* Animated poses */
+    public GuiToggleElement animates;
+    public GuiToggleElement ignored;
+    public GuiTrackpadElement animationDuration;
+    public GuiButtonElement pickInterpolation;
+    public GuiListElement<Interpolation> interpolations;
+
+    public Animation animation;
+
+    private InterpolationTooltip interpolationTooltip = new InterpolationTooltip(0F, 0, () -> this.animation.interp, () -> this.animation.duration);
+
+    public GuiAnimation(MinecraftClient mc)
+    {
+        this(mc, false);
+    }
+
+    public GuiAnimation(MinecraftClient mc, boolean addIgnore)
+    {
+        super(mc);
+
+        /* Animated poses */
+        this.animates = new GuiToggleElement(mc, IKey.lang("metamorph.gui.animation.animates"), false, (b) ->
+        {
+            this.animation.animates = this.animates.isToggled();
+            this.animation.reset();
+        });
+
+        this.ignored = new GuiToggleElement(mc, IKey.lang("metamorph.gui.animation.ignored"), false, (b) ->
+        {
+            this.animation.ignored = this.ignored.isToggled();
+        });
+
+        this.animationDuration = new GuiTrackpadElement(mc, (value) ->
+        {
+            this.animation.duration = value.intValue();
+            this.animation.reset();
+        });
+        this.animationDuration.tooltip(IKey.lang("metamorph.gui.animation.animation_duration"));
+        this.animationDuration.limit(0).integer();
+        this.animationDuration.values(2, 1, 5);
+
+        this.pickInterpolation = new GuiButtonElement(mc, IKey.lang("metamorph.gui.animation.pick_interpolation"), (b) ->
+        {
+            this.interpolations.toggleVisible();
+        });
+        this.pickInterpolation.tooltip(this.interpolationTooltip);
+
+        this.interpolations = new GuiInterpolationList(mc, (interp) ->
+        {
+            this.animation.interp = interp.get(0);
+        });
+        this.interpolations.tooltip(this.interpolationTooltip).markIgnored().flex().relative(this.pickInterpolation).y(1F).w(1F).h(96);
+
+        this.flex().column(5).vertical().stretch().height(20).padding(10);
+
+        this.add(this.animates, this.animationDuration, this.pickInterpolation);
+
+        if (addIgnore)
+        {
+            this.addAfter(this.animationDuration, this.ignored);
+        }
+
+        this.add(this.interpolations);
+    }
+
+    public void fill(Animation animation)
+    {
+        this.animation = animation;
+        this.animation.reset();
+
+        this.animates.toggled(animation.animates);
+        this.ignored.toggled(animation.ignored);
+        this.animationDuration.setValue(animation.duration);
+        this.interpolations.setCurrent(animation.interp);
+        this.interpolations.setVisible(false);
+    }
+}
