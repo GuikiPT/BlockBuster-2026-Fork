@@ -33,6 +33,7 @@ jobs:
           python .github/fix_client_batch3.py
           python .github/fix_final_compile_and_mixins.py
           python .github/fix_runtime_fade_mixin.py
+          python .github/fix_client_packet_sender.py
       - name: Build migrated source
         run: |
           chmod +x gradlew
