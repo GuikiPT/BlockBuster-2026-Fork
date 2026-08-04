@@ -1,0 +1,38 @@
+name: Full Minecraft 1.21.1 port build
+
+on:
+  push:
+    branches:
+      - gpt-1.21.1-full-port
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Apply complete migration patch
+        run: |
+          cat .github/port.patch.gz.b64.* | base64 --decode | gzip --decompress > /tmp/port.patch
+          git apply --check /tmp/port.patch
+          git apply /tmp/port.patch
+      - name: Build migrated source
+        run: |
+          chmod +x gradlew
+          ./gradlew build --stacktrace --warning-mode all
+      - name: Upload build outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blockbuster-1.21.1-full-port
+          path: |
+            build/libs/*.jar
+            build/reports/**
+          if-no-files-found: ignore
