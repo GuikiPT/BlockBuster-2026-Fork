@@ -73,23 +73,24 @@ elif plain_signature not in item_gun_text:
     raise SystemExit("Expected ItemGun component-update animation method was not found")
 item_gun.write_text(item_gun_text, encoding="utf-8")
 
-# NeoForge's mapped concrete handler omits the inherited Yarn bridge in this
-# workspace. Invoke the stable PlayerAssociatedNetworkHandler API explicitly.
+# NeoForge's packet listener exposes send(Packet) rather than Fabric/Yarn's
+# sendPacket bridge. Use that native method and remove the obsolete cast/import.
 swipe = root / "src/main/java/mchorse/blockbuster/recording/actions/SwipeAction.java"
-swipe_text = swipe.read_text(encoding="utf-8")
+swipe_text = swipe.read_text(encoding="utf-8")n
 player_import = "import net.minecraft.server.network.PlayerAssociatedNetworkHandler;\n"
-anchor_import = "import net.minecraft.server.network.ServerPlayerEntity;\n"
-if player_import not in swipe_text:
-    if anchor_import not in swipe_text:
-        raise SystemExit("Expected ServerPlayerEntity import was not found")
-    swipe_text = swipe_text.replace(anchor_import, player_import + anchor_import, 1)
+swipe_text = swipe_text.replace(player_import, "")
 
-concrete_send = "serverPlayer.networkHandler.sendPacket("
-interface_send = "((PlayerAssociatedNetworkHandler) serverPlayer.networkHandler).sendPacket("
-if concrete_send in swipe_text:
-    swipe_text = swipe_text.replace(concrete_send, interface_send, 1)
-elif interface_send not in swipe_text:
+fabric_send = "serverPlayer.networkHandler.sendPacket("
+cast_send = "((PlayerAssociatedNetworkHandler) serverPlayer.networkHandler).sendPacket("
+neoforge_send = "serverPlayer.networkHandler.send("
+
+if cast_send in swipe_text:
+    swipe_text = swipe_text.replace(cast_send, neoforge_send, 1)
+elif fabric_send in swipe_text:
+    swipe_text = swipe_text.replace(fabric_send, neoforge_send, 1)
+elif neoforge_send not in swipe_text:
     raise SystemExit("Expected SwipeAction packet-send call was not found")
+
 swipe.write_text(swipe_text, encoding="utf-8")
 
 print("Applied Architectury's NeoForge Yarn patch and BlockBuster compile compatibility fixes.")
