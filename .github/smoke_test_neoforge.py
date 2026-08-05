@@ -2,10 +2,51 @@ from pathlib import Path
 import os
 import re
 import subprocess
+import zipfile
 
 root = Path.cwd()
 log_path = root / 'build' / 'neoforge-client-smoke.log'
 log_path.parent.mkdir(parents=True, exist_ok=True)
+
+# This compatibility regression is not visible at the title screen because
+# Pixelmon is optional and is not redistributed in CI. Verify that the exact
+# source bridge and adapter made it through generation and into the production
+# JAR before launching the client.
+pixelmon_source = root / 'src/main/java/mchorse/metamorph/compat/PixelmonEntityMorphAdapter.java'
+compat_source = root / 'src/main/java/mchorse/metamorph/compat/EntityMorphCompatibility.java'
+entity_source = root / 'src/main/java/mchorse/metamorph/api/morphs/EntityMorph.java'
+renderer_source = root / 'src/client/java/mchorse/metamorph/client/render/EntityMorphRenderer.java'
+
+source_checks = {
+    'Pixelmon adapter source': pixelmon_source.exists(),
+    'Pixelmon head policy': pixelmon_source.exists() and 'mirrorsVanillaHeadRotation' in pixelmon_source.read_text(encoding='utf-8'),
+    'shared rotation bridge': compat_source.exists() and 'public static void mirrorRotations' in compat_source.read_text(encoding='utf-8'),
+    'tick path bridge': entity_source.exists() and 'mirrorRotations(this.entity, target)' in entity_source.read_text(encoding='utf-8'),
+    'render path bridge': renderer_source.exists() and 'mirrorRotations(to, from)' in renderer_source.read_text(encoding='utf-8'),
+}
+missing_source = [name for name, ok in source_checks.items() if not ok]
+if missing_source:
+    raise SystemExit('Pixelmon head-rotation source validation failed: ' + ', '.join(missing_source))
+
+jars = sorted(
+    path for path in (root / 'build' / 'libs').glob('blockbuster-*.jar')
+    if not path.name.endswith('-sources.jar')
+)
+if not jars:
+    raise SystemExit('No production Blockbuster JAR was available for compatibility validation.')
+
+with zipfile.ZipFile(jars[-1]) as archive:
+    packaged = set(archive.namelist())
+
+required_classes = {
+    'mchorse/metamorph/compat/PixelmonEntityMorphAdapter.class',
+    'mchorse/metamorph/compat/EntityMorphCompatibility.class',
+    'mchorse/metamorph/compat/EntityMorphAdapter.class',
+}
+missing_classes = sorted(required_classes - packaged)
+if missing_classes:
+    raise SystemExit('Pixelmon head-rotation classes were not packaged: ' + ', '.join(missing_classes))
+
 command = ['xvfb-run', '-a', './gradlew', 'runClient', '--no-daemon', '--stacktrace']
 
 try:
