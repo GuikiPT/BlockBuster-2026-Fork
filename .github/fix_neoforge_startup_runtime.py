@@ -16,6 +16,34 @@ mixins["client"] = [
 ]
 mixins_json.write_text(json.dumps(mixins, indent="\t") + "\n", encoding="utf-8")
 
+# Fabric registers default entity attributes immediately. NeoForge fires its
+# EntityAttributeCreationEvent only after its own deferred attributes (including
+# swim_speed) are bound. Remove the two early Fabric registrations and recreate
+# them from the NeoForge mod-bus event below.
+metamorph = root / "src/main/java/mchorse/metamorph/MetamorphCommon.java"
+metamorph_text = metamorph.read_text(encoding="utf-8")
+metamorph_text = metamorph_text.replace(
+    "import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;\n",
+    "",
+)
+metamorph_text = metamorph_text.replace(
+    "\n        FabricDefaultAttributeRegistry.register(MORPH, LivingEntity.createLivingAttributes());",
+    "",
+)
+metamorph.write_text(metamorph_text, encoding="utf-8")
+
+blockbuster = root / "src/main/java/mchorse/blockbuster/Blockbuster.java"
+blockbuster_text = blockbuster.read_text(encoding="utf-8")
+blockbuster_text = blockbuster_text.replace(
+    "import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;\n",
+    "",
+)
+blockbuster_text = blockbuster_text.replace(
+    "\n        FabricDefaultAttributeRegistry.register(ACTOR, MobEntity.createMobAttributes());",
+    "",
+)
+blockbuster.write_text(blockbuster_text, encoding="utf-8")
+
 # BlockBuster's shared source still performs Fabric-style direct Registry.register
 # calls. NeoForge freezes vanilla registries before constructing @Mod classes.
 # Calling the added unfreeze method by name is not reliable across Yarn/Mojang/
@@ -26,10 +54,15 @@ entrypoint = root / "src/main/java/mchorse/blockbuster/neoforge/BlockbusterNeoFo
 entrypoint.write_text('''package mchorse.blockbuster.neoforge;
 
 import mchorse.blockbuster.Blockbuster;
+import mchorse.metamorph.MetamorphCommon;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.registry.Registries;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -48,6 +81,8 @@ public final class BlockbusterNeoForge
 
     public BlockbusterNeoForge(IEventBus modEventBus, Dist dist)
     {
+        modEventBus.register(this);
+
         List<RegistryState> registryStates = unfreezeVanillaRegistries();
 
         try
@@ -62,6 +97,20 @@ public final class BlockbusterNeoForge
         if (dist == Dist.CLIENT)
         {
             NeoForgeClientBootstrap.initialize();
+        }
+    }
+
+    @SubscribeEvent
+    public void onRegisterAttributes(EntityAttributeCreationEvent event)
+    {
+        if (MetamorphCommon.MORPH != null)
+        {
+            event.put(MetamorphCommon.MORPH, LivingEntity.createLivingAttributes().build());
+        }
+
+        if (Blockbuster.ACTOR != null)
+        {
+            event.put(Blockbuster.ACTOR, MobEntity.createMobAttributes().build());
         }
     }
 
@@ -197,4 +246,4 @@ public final class BlockbusterNeoForge
 }
 ''', encoding="utf-8")
 
-print("Applied namespace-independent NeoForge registry bridge and optional client mixins.")
+print("Applied NeoForge registry bridge, deferred entity attributes, and optional client mixins.")
