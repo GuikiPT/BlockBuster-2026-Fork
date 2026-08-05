@@ -20,7 +20,7 @@ jobs:
           cache: gradle
       - name: Install headless client dependencies
         run: sudo apt-get update && sudo apt-get install -y xvfb
-      - name: Generate stabilized Fabric source and convert it to NeoForge
+      - name: Generate stabilized Fabric 1.21.1 source
         run: |
           cat .github/port.patch.gz.b64.* | base64 --decode | gzip --decompress > /tmp/port.patch
           git apply --check /tmp/port.patch
@@ -40,10 +40,27 @@ jobs:
           python .github/fix_remaining_runtime_gaps.py
           python .github/fix_modded_entity_state_adapters.py
           python .github/fix_global_entity_adapter_api.py
+      - name: Migrate generated Yarn source to Mojang mappings
+        run: |
+          chmod +x gradlew
+          sed -i "s/id 'fabric-loom' version '1.7.4'/id 'fabric-loom' version '1.13.6'/" build.gradle
+          sed -i 's/gradle-8.8-bin.zip/gradle-8.14-bin.zip/' gradle/wrapper/gradle-wrapper.properties
+          ./gradlew migrateMappings \
+            --mappings "net.minecraft:mappings:1.21.1" \
+            --overrideInputsIHaveABackup \
+            --no-daemon --stacktrace
+          ./gradlew migrateClientMappings \
+            --mappings "net.minecraft:mappings:1.21.1" \
+            --overrideInputsIHaveABackup \
+            --no-daemon --stacktrace
+          ./gradlew migrateClassTweakerMappings \
+            --mappings "net.minecraft:mappings:1.21.1" \
+            --overrideInputsIHaveABackup \
+            --no-daemon --stacktrace
+      - name: Convert migrated source to NeoForge workspace
+        run: |
           python .github/migrate_to_neoforge.py
-          # Yarn build.3 collides with two methods added/patched by NeoForge 21.1.219.
-          # Build.1 preserves the 1.21.1 Yarn API used by the port without those aliases.
-          sed -i 's/yarn_mappings=1.21.1+build.3/yarn_mappings=1.21.1+build.1/' gradle.properties
+          python .github/finalize_neoforge_mojmap.py
       - name: Build NeoForge source
         run: |
           chmod +x gradlew
