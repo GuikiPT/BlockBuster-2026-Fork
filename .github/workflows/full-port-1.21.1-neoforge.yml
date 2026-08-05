@@ -48,6 +48,7 @@ jobs:
           python .github/fix_neoforge_startup_runtime.py
           python .github/fix_neoforge_vecmath_shading.py
           python .github/fix_neoforge_creative_tab_stacks.py
+          python .github/fix_neoforge_target_versions.py
       - name: Build NeoForge source
         run: |
           chmod +x gradlew
