@@ -47,6 +47,7 @@ jobs:
           python .github/apply_neoforge_yarn_compat_patch.py
           python .github/fix_neoforge_startup_runtime.py
           python .github/fix_neoforge_vecmath_shading.py
+          python .github/fix_neoforge_creative_tab_stacks.py
       - name: Build NeoForge source
         run: |
           chmod +x gradlew
