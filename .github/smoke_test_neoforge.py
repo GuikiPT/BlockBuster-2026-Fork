@@ -29,16 +29,24 @@ except subprocess.TimeoutExpired as error:
 log_path.write_text(output, encoding='utf-8')
 print(output)
 
+# Treat every unmistakable Minecraft/NeoForge crash marker as fatal, rather
+# than maintaining a tiny exception allow-list that can miss later runtime
+# failures such as creative-tab IllegalArgumentException crashes.
 fatal = re.compile(
     r'MixinApplyError|InvalidMixinException|MixinTransformerError|'
     r'Could not execute entrypoint|Failed to create mod instance|'
-    r'Exception in thread "Render thread"|ModLoadingException|'
-    r'java\.lang\.NoSuchMethodError|java\.lang\.NoSuchFieldError',
+    r'Exception in thread "(?:Render thread|Server thread|main)"|'
+    r'Unreported exception thrown|Preparing crash report|Game crashed!|'
+    r'ModLoadingException|Crash Report UUID|'
+    r'java\.lang\.(?:NoSuchMethodError|NoSuchFieldError|IllegalArgumentException|IllegalStateException)',
     re.IGNORECASE,
 )
 
-if fatal.search(output):
-    raise SystemExit('NeoForge client smoke test found a startup/runtime failure.')
+match = fatal.search(output)
+if match:
+    raise SystemExit(
+        'NeoForge client smoke test found a startup/runtime failure: ' + match.group(0)
+    )
 
 startup_markers = (
     'Blockbuster (Fabric port) initialized',
