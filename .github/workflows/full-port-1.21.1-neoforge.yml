@@ -40,6 +40,7 @@ jobs:
           python .github/fix_remaining_runtime_gaps.py
           python .github/fix_modded_entity_state_adapters.py
           python .github/fix_global_entity_adapter_api.py
+          python .github/fix_modded_entity_head_rotation.py
       - name: Convert generated source to NeoForge workspace
         run: |
           python .github/migrate_to_neoforge.py
