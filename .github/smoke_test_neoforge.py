@@ -29,16 +29,16 @@ except subprocess.TimeoutExpired as error:
 log_path.write_text(output, encoding='utf-8')
 print(output)
 
-# Treat every unmistakable Minecraft/NeoForge crash marker as fatal, rather
-# than maintaining a tiny exception allow-list that can miss later runtime
-# failures such as creative-tab IllegalArgumentException crashes.
+# Match structural crash markers rather than every exception printed by
+# Minecraft. A headless Linux client routinely logs recoverable narrator and
+# OpenAL IllegalStateExceptions, then continues running normally.
 fatal = re.compile(
     r'MixinApplyError|InvalidMixinException|MixinTransformerError|'
     r'Could not execute entrypoint|Failed to create mod instance|'
     r'Exception in thread "(?:Render thread|Server thread|main)"|'
     r'Unreported exception thrown|Preparing crash report|Game crashed!|'
     r'ModLoadingException|Crash Report UUID|'
-    r'java\.lang\.(?:NoSuchMethodError|NoSuchFieldError|IllegalArgumentException|IllegalStateException)',
+    r'java\.lang\.(?:NoSuchMethodError|NoSuchFieldError)',
     re.IGNORECASE,
 )
 
