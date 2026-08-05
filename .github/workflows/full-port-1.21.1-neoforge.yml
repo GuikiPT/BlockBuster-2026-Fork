@@ -57,6 +57,7 @@ jobs:
             --mappings "net.minecraft:mappings:1.21.1" \
             --overrideInputsIHaveABackup \
             --no-daemon --stacktrace
+          python .github/fix_mojmap_migration_imports.py
       - name: Convert migrated source to NeoForge workspace
         run: |
           python .github/migrate_to_neoforge.py
