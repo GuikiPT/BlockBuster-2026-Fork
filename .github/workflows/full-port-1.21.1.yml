@@ -36,6 +36,8 @@ jobs:
           python .github/fix_client_packet_sender.py
           python .github/fix_global_morph_animation_state.py
           python .github/fix_remaining_runtime_gaps.py
+          python .github/fix_modded_entity_state_adapters.py
+          python .github/fix_global_entity_adapter_api.py
       - name: Build migrated source
         run: |
           chmod +x gradlew
