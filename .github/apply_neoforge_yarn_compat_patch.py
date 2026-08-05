@@ -76,7 +76,8 @@ item_gun.write_text(item_gun_text, encoding="utf-8")
 # NeoForge's packet listener exposes send(Packet) rather than Fabric/Yarn's
 # sendPacket bridge. Use that native method and remove the obsolete cast/import.
 swipe = root / "src/main/java/mchorse/blockbuster/recording/actions/SwipeAction.java"
-swipe_text = swipe.read_text(encoding="utf-8")n
+swipe_text = swipe.read_text(encoding="utf-8")
+
 player_import = "import net.minecraft.server.network.PlayerAssociatedNetworkHandler;\n"
 swipe_text = swipe_text.replace(player_import, "")
 
