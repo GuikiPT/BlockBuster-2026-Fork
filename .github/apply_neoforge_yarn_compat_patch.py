@@ -99,21 +99,141 @@ elif neoforge_send not in swipe_text:
 
 swipe.write_text(swipe_text, encoding="utf-8")
 
-# The layered NeoForge/Yarn workspace keeps KeyMapping's runtime field under
-# Mojang's name MAP even though the source class itself is exposed with Yarn's
-# KeyBinding name. The Mixin annotation processor cannot remap the Yarn literal
-# KEY_TO_BINDINGS in this hybrid namespace, so target the actual NeoForge field
-# name directly and explicitly disable remapping for this accessor.
-key_accessor = root / "src/client/java/mchorse/blockbuster/mixin/client/KeyBindingKeyMapAccessor.java"
-key_accessor_text = key_accessor.read_text(encoding="utf-8")
-yarn_accessor = '    @Accessor("KEY_TO_BINDINGS")'
-neoforge_accessor = '    @Accessor(value = "MAP", remap = false)'
+# KeyMapping's key-to-binding map is named differently in Yarn source,
+# NeoForge production, and the layered NeoForge development jar. A hard-coded
+# Mixin accessor therefore crashes at startup in at least one namespace.
+# Remove the accessor mixin and let the one consumer resolve the private static
+# map defensively at runtime. If reflection is blocked, gun input degrades
+# gracefully instead of preventing Minecraft from starting.
+mixins_json = root / "src/main/resources/blockbuster.client.mixins.json"
+mixins_text = mixins_json.read_text(encoding="utf-8")
+mixin_entry = '\t\t"KeyBindingKeyMapAccessor",\n'
+mixins_text = mixins_text.replace(mixin_entry, "")
+mixins_json.write_text(mixins_text, encoding="utf-8")
 
-if yarn_accessor in key_accessor_text:
-    key_accessor_text = key_accessor_text.replace(yarn_accessor, neoforge_accessor, 1)
-elif neoforge_accessor not in key_accessor_text:
-    raise SystemExit("Expected KeyBinding KEY_TO_BINDINGS accessor was not found")
+gun_handler = root / "src/client/java/mchorse/blockbuster/events/GunShootHandler.java"
+gun_text = gun_handler.read_text(encoding="utf-8")
+gun_text = gun_text.replace(
+    "import mchorse.blockbuster.mixin.client.KeyBindingKeyMapAccessor;\n",
+    "",
+)
+gun_text = gun_text.replace(
+    "import java.util.Map;\n",
+    "import java.lang.reflect.Field;\nimport java.lang.reflect.Modifier;\nimport java.util.Map;\n",
+    1,
+)
 
-key_accessor.write_text(key_accessor_text, encoding="utf-8")
+instance_anchor = "    private static GunShootHandler instance;\n"
+reflection_fields = '''    private static GunShootHandler instance;
+
+    private static volatile Field keyToBindingsField;
+    private static boolean keyToBindingsLookupAttempted;
+'''
+if instance_anchor in gun_text:
+    gun_text = gun_text.replace(instance_anchor, reflection_fields, 1)
+elif "private static volatile Field keyToBindingsField;" not in gun_text:
+    raise SystemExit("Expected GunShootHandler instance field was not found")
+
+old_lookup = "        Map<InputUtil.Key, KeyBinding> bindings = KeyBindingKeyMapAccessor.getKeyToBindings();\n\n        if (bindings.get(key) == shoot)"
+new_lookup = '''        Map<InputUtil.Key, KeyBinding> bindings = keyToBindings();
+
+        if (bindings == null)
+        {
+            return;
+        }
+
+        if (bindings.get(key) == shoot)'''
+if old_lookup in gun_text:
+    gun_text = gun_text.replace(old_lookup, new_lookup, 1)
+elif "Map<InputUtil.Key, KeyBinding> bindings = keyToBindings();" not in gun_text:
+    raise SystemExit("Expected KeyBinding accessor usage was not found")
+
+helper_anchor = '''    /**
+     * Held state of the shoot bind: read off the attack bind while the two share
+'''
+reflection_helper = '''    @SuppressWarnings("unchecked")
+    private static Map<InputUtil.Key, KeyBinding> keyToBindings()
+    {
+        Field cached = keyToBindingsField;
+
+        if (cached != null)
+        {
+            try
+            {
+                return (Map<InputUtil.Key, KeyBinding>) cached.get(null);
+            }
+            catch (IllegalAccessException ignored)
+            {
+                return null;
+            }
+        }
+
+        if (keyToBindingsLookupAttempted)
+        {
+            return null;
+        }
+
+        keyToBindingsLookupAttempted = true;
+
+        for (String name : new String[] {"KEY_TO_BINDINGS", "MAP", "field_1658", "f_90810_"})
+        {
+            try
+            {
+                Field field = KeyBinding.class.getDeclaredField(name);
+
+                if (Modifier.isStatic(field.getModifiers()) && Map.class.isAssignableFrom(field.getType()))
+                {
+                    field.setAccessible(true);
+                    keyToBindingsField = field;
+
+                    return (Map<InputUtil.Key, KeyBinding>) field.get(null);
+                }
+            }
+            catch (ReflectiveOperationException | RuntimeException ignored)
+            {}
+        }
+
+        for (Field field : KeyBinding.class.getDeclaredFields())
+        {
+            if (!Modifier.isStatic(field.getModifiers()) || !Map.class.isAssignableFrom(field.getType()))
+            {
+                continue;
+            }
+
+            try
+            {
+                field.setAccessible(true);
+                Object value = field.get(null);
+
+                if (!(value instanceof Map<?, ?> map) || map.isEmpty())
+                {
+                    continue;
+                }
+
+                Map.Entry<?, ?> entry = map.entrySet().iterator().next();
+
+                if (entry.getKey() instanceof InputUtil.Key && entry.getValue() instanceof KeyBinding)
+                {
+                    keyToBindingsField = field;
+
+                    return (Map<InputUtil.Key, KeyBinding>) map;
+                }
+            }
+            catch (IllegalAccessException | RuntimeException ignored)
+            {}
+        }
+
+        return null;
+    }
+
+    /**
+     * Held state of the shoot bind: read off the attack bind while the two share
+'''
+if helper_anchor in gun_text:
+    gun_text = gun_text.replace(helper_anchor, reflection_helper, 1)
+elif "private static Map<InputUtil.Key, KeyBinding> keyToBindings()" not in gun_text:
+    raise SystemExit("Expected GunShootHandler shootDown documentation anchor was not found")
+
+gun_handler.write_text(gun_text, encoding="utf-8")
 
 print("Applied Architectury's NeoForge Yarn patch and BlockBuster compatibility fixes.")
