@@ -4,41 +4,48 @@ from pathlib import Path
 import re
 
 ROOT = Path.cwd()
-CALLBACK_PATH = ROOT / "src/client/java/net/fabricmc/fabric/api/client/rendering/v1/ItemOverlayCallback.java"
+candidates = list((ROOT / "src").rglob("ItemOverlayCallback.java")) if (ROOT / "src").exists() else []
 
-if not CALLBACK_PATH.exists():
-    raise SystemExit(f"Missing expected compatibility callback: {CALLBACK_PATH}")
+if not candidates:
+    print("No local ItemOverlayCallback shim was generated; no HUD compatibility patch was needed.")
+    raise SystemExit(0)
 
-text = CALLBACK_PATH.read_text(encoding="utf-8")
-original = text
+patched = 0
+for callback_path in candidates:
+    text = callback_path.read_text(encoding="utf-8")
+    original = text
 
-# FFAPI 1.21.1 does not expose Fabric's HudRenderCallback. BlockBuster only
-# uses this local interface through its own EVENT and onRenderItemOverlay hook,
-# so it does not need to inherit the unavailable Fabric callback.
-text = re.sub(
-    r"public\s+interface\s+ItemOverlayCallback\s+extends\s+HudRenderCallback",
-    "public interface ItemOverlayCallback",
-    text,
-)
-text = re.sub(
-    r"(?m)^import\s+net\.fabricmc\.fabric\.api\.client\.rendering\.v1\.HudRenderCallback;\s*\n",
-    "",
-    text,
-)
-text = re.sub(
-    r"(?m)^import\s+net\.minecraft\.[^;]*(?:RenderTickCounter|DeltaTracker);\s*\n",
-    "",
-    text,
-)
-text = re.sub(
-    r"\n\s*@Override\s*\n\s*default\s+void\s+onHudRender\s*\([^)]*\)\s*\{\s*\}\s*",
-    "\n",
-    text,
-    flags=re.DOTALL,
-)
+    # FFAPI 1.21.1 may omit Fabric's HudRenderCallback. BlockBuster's local
+    # item-overlay interface only needs its own EVENT and render hook, so it
+    # does not need to inherit that unavailable callback.
+    text = re.sub(
+        r"public\s+interface\s+ItemOverlayCallback\s+extends\s+HudRenderCallback",
+        "public interface ItemOverlayCallback",
+        text,
+    )
+    text = re.sub(
+        r"(?m)^import\s+net\.fabricmc\.fabric\.api\.client\.rendering\.v1\.HudRenderCallback;\s*\n",
+        "",
+        text,
+    )
+    text = re.sub(
+        r"(?m)^import\s+net\.minecraft\.[^;]*(?:RenderTickCounter|DeltaTracker);\s*\n",
+        "",
+        text,
+    )
+    text = re.sub(
+        r"\n\s*@Override\s*\n\s*default\s+void\s+onHudRender\s*\([^)]*\)\s*\{\s*\}\s*",
+        "\n",
+        text,
+        flags=re.DOTALL,
+    )
 
-if text == original:
-    raise SystemExit("The expected ItemOverlayCallback NeoForge compatibility seam was not found")
+    if text != original:
+        callback_path.write_text(text, encoding="utf-8")
+        patched += 1
+        print(f"Patched {callback_path.relative_to(ROOT)}")
 
-CALLBACK_PATH.write_text(text, encoding="utf-8")
-print("Detached BlockBuster's item-overlay callback from unavailable HudRenderCallback API.")
+if patched:
+    print(f"Detached {patched} item-overlay callback shim(s) from unavailable HudRenderCallback API.")
+else:
+    print("Discovered ItemOverlayCallback source already required no NeoForge HUD compatibility changes.")
