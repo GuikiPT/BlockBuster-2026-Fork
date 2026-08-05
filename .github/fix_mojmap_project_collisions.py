@@ -21,10 +21,8 @@ text = text.replace(
 text = text.replace("public StructureRenderer(", "public StructureMorph(")
 text = text.replace("StructureRenderer.DEFAULT_TRANSFORM", "StructureMorph.DEFAULT_TRANSFORM")
 
-if text == original:
-    raise SystemExit("The expected StructureMorph mapping collision was not found")
-
-MORPH_PATH.write_text(text, encoding="utf-8")
+if text != original:
+    MORPH_PATH.write_text(text, encoding="utf-8")
 
 old_fqcn = "mchorse.blockbuster_pack.morphs.StructureRenderer"
 new_fqcn = "mchorse.blockbuster_pack.morphs.StructureMorph"
@@ -42,5 +40,12 @@ for source_root in (ROOT / "src/main/java", ROOT / "src/client/java"):
             path.write_text(updated, encoding="utf-8")
             updated_references += 1
 
-print("Restored BlockBuster's StructureMorph after the Mojmap name collision.")
+final_text = MORPH_PATH.read_text(encoding="utf-8")
+if "public class StructureMorph extends AbstractMorph" not in final_text:
+    raise SystemExit("StructureMorph has an unexpected declaration after Mojmap migration")
+
+if text != original or updated_references:
+    print("Restored BlockBuster's StructureMorph after the Mojmap name collision.")
+else:
+    print("StructureMorph did not require a Mojmap collision repair.")
 print(f"Updated {updated_references} fully-qualified StructureMorph references.")
