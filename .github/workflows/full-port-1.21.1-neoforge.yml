@@ -58,6 +58,8 @@ jobs:
             --overrideInputsIHaveABackup \
             --no-daemon --stacktrace
           python .github/fix_mojmap_migration_imports.py
+          python .github/fix_mojmap_project_collisions.py
+          python .github/fix_neoforge_compatibility_shims.py
       - name: Convert migrated source to NeoForge workspace
         run: |
           python .github/migrate_to_neoforge.py
