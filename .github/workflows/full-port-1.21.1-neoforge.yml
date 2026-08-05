@@ -41,6 +41,9 @@ jobs:
           python .github/fix_modded_entity_state_adapters.py
           python .github/fix_global_entity_adapter_api.py
           python .github/migrate_to_neoforge.py
+          # Yarn build.3 collides with two methods added/patched by NeoForge 21.1.219.
+          # Build.1 preserves the 1.21.1 Yarn API used by the port without those aliases.
+          sed -i 's/yarn_mappings=1.21.1+build.3/yarn_mappings=1.21.1+build.1/' gradle.properties
       - name: Build NeoForge source
         run: |
           chmod +x gradlew
