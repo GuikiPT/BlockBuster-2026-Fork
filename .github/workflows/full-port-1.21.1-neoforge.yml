@@ -72,7 +72,7 @@ jobs:
         run: python .github/package_neoforge_source.py
       - name: NeoForge client launch smoke test
         run: python .github/smoke_test_neoforge.py
-      - name: Upload NeoForge build outputs
+      - name: Upload NeoForge build outputs and migrated workspace
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -82,4 +82,10 @@ jobs:
             build/distributions/*.zip
             build/neoforge-client-smoke.log
             build/reports/**
+            src/main/java/**
+            src/client/java/**
+            src/main/resources/**
+            build.gradle
+            gradle.properties
+            settings.gradle
           if-no-files-found: ignore
