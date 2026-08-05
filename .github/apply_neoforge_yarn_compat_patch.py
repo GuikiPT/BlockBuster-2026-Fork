@@ -33,12 +33,17 @@ if plain_mappings in build_text:
 elif layered_mappings not in build_text:
     raise SystemExit("Expected Yarn mappings declaration was not found")
 
-loader_compile = '    compileOnly "org.sinytra:forgified-fabric-loader:${project.ffl_version}"'
+# FFAPI's distribution already embeds Forgified Fabric Loader. Keep its API on
+# the compile classpath only and do not add a second runtime/full loader jar,
+# which causes duplicate Java modules in NeoForge's development launch.
 loader_implementation = '    implementation "org.sinytra:forgified-fabric-loader:${project.ffl_version}"'
-if loader_compile in build_text:
-    build_text = build_text.replace(loader_compile, loader_implementation, 1)
-elif loader_implementation not in build_text:
-    raise SystemExit("Expected Forgified Fabric Loader dependency was not found")
+loader_compile = '    compileOnly "org.sinytra:forgified-fabric-loader:${project.ffl_version}"'
+loader_runtime = '    runtimeOnly "org.sinytra:forgified-fabric-loader:${project.ffl_version}:full"\n'
+if loader_implementation in build_text:
+    build_text = build_text.replace(loader_implementation, loader_compile, 1)
+elif loader_compile not in build_text:
+    raise SystemExit("Expected Forgified Fabric Loader compile dependency was not found")
+build_text = build_text.replace(loader_runtime, "")
 
 iris_old = '    modCompileOnly "maven.modrinth:iris:${project.iris_version}"'
 iris_exact = '    modCompileOnly "maven.modrinth:YL57xq9U:oXIoDcGE"'
@@ -94,4 +99,4 @@ elif neoforge_send not in swipe_text:
 
 swipe.write_text(swipe_text, encoding="utf-8")
 
-print("Applied Architectury's NeoForge Yarn patch and BlockBuster compile compatibility fixes.")
+print("Applied Architectury's NeoForge Yarn patch and BlockBuster compatibility fixes.")
