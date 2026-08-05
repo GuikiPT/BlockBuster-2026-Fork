@@ -35,6 +35,7 @@ jobs:
           python .github/fix_runtime_fade_mixin.py
           python .github/fix_client_packet_sender.py
           python .github/fix_global_morph_animation_state.py
+          python .github/fix_remaining_runtime_gaps.py
       - name: Build migrated source
         run: |
           chmod +x gradlew
