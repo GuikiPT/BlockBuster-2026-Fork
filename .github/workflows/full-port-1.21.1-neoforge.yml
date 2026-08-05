@@ -45,6 +45,7 @@ jobs:
           python .github/migrate_to_neoforge.py
           python .github/fix_neoforge_compatibility_shims.py
           python .github/apply_neoforge_yarn_compat_patch.py
+          python .github/fix_neoforge_startup_runtime.py
       - name: Build NeoForge source
         run: |
           chmod +x gradlew
