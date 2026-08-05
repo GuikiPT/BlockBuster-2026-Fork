@@ -1,23 +1,27 @@
 from pathlib import Path
+import json
 
 root = Path.cwd()
 
-# The 1.21.1 WorldRenderer particle seam differs between Fabric/Yarn and the
-# NeoForge-patched runtime. Disable this optional visual hook on NeoForge until
-# it is reimplemented against NeoForge's render-stage events. Keeping a required
-# injector here prevents the entire game from starting.
+# The generated client mixins still contain several 1.20-era injection points.
+# On NeoForge 1.21.1, a missing optional visual/HUD injection must warn and skip
+# instead of aborting the entire client. Working mixins continue to apply.
 mixins_json = root / "src/main/resources/blockbuster.client.mixins.json"
-mixins_text = mixins_json.read_text(encoding="utf-8")
-particle_entry = '\t\t"WorldRendererParticlesMixin",\n'
-mixins_text = mixins_text.replace(particle_entry, "")
-mixins_json.write_text(mixins_text, encoding="utf-8")
+mixins = json.loads(mixins_json.read_text(encoding="utf-8"))
+mixins["required"] = False
+mixins.setdefault("injectors", {})["defaultRequire"] = 0
+mixins["client"] = [
+    name for name in mixins.get("client", [])
+    if name != "WorldRendererParticlesMixin"
+]
+mixins_json.write_text(json.dumps(mixins, indent="\t") + "\n", encoding="utf-8")
 
 # BlockBuster's shared source still performs Fabric-style direct Registry.register
-# calls. NeoForge freezes the vanilla registries before constructing @Mod classes,
-# so direct registration throws "Registry is already frozen". NeoForge itself
-# exposes BaseMappedRegistry.unfreeze(boolean) for its internal registration
-# lifecycle. Use that bridge only around the shared initialization, then restore
-# the frozen state before client bootstrap continues.
+# calls. NeoForge freezes vanilla registries before constructing @Mod classes.
+# Calling the added unfreeze method by name is not reliable across Yarn/Mojang/
+# production namespaces, so toggle the actual frozen field, run shared content
+# registration, and invoke the normal freeze method afterwards for validation and
+# callbacks. This bridge is intentionally limited to the initialization window.
 entrypoint = root / "src/main/java/mchorse/blockbuster/neoforge/BlockbusterNeoForge.java"
 entrypoint.write_text('''package mchorse.blockbuster.neoforge;
 
@@ -32,15 +36,19 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Native NeoForge entrypoint for the shared 1.21.1 BlockBuster source. */
 @Mod(Blockbuster.MOD_ID)
 public final class BlockbusterNeoForge
 {
+    private record RegistryState(Object registry, Field frozenField, boolean wasFrozen) {}
+
     public BlockbusterNeoForge(IEventBus modEventBus, Dist dist)
     {
-        List<Object> unfrozenRegistries = unfreezeVanillaRegistries();
+        List<RegistryState> registryStates = unfreezeVanillaRegistries();
 
         try
         {
@@ -48,7 +56,7 @@ public final class BlockbusterNeoForge
         }
         finally
         {
-            refreezeVanillaRegistries(unfrozenRegistries);
+            refreezeVanillaRegistries(registryStates);
         }
 
         if (dist == Dist.CLIENT)
@@ -57,63 +65,81 @@ public final class BlockbusterNeoForge
         }
     }
 
-    private static List<Object> unfreezeVanillaRegistries()
+    private static List<RegistryState> unfreezeVanillaRegistries()
     {
-        List<Object> result = new ArrayList<>();
+        Map<Object, RegistryState> unique = new IdentityHashMap<>();
 
-        for (Field field : Registries.class.getDeclaredFields())
+        for (Field holderField : Registries.class.getDeclaredFields())
         {
-            if (!Modifier.isStatic(field.getModifiers()))
+            if (!Modifier.isStatic(holderField.getModifiers()))
             {
                 continue;
             }
 
             try
             {
-                field.setAccessible(true);
-                Object registry = field.get(null);
+                holderField.setAccessible(true);
+                Object registry = holderField.get(null);
 
-                if (registry == null)
+                if (registry == null || unique.containsKey(registry))
                 {
                     continue;
                 }
 
-                Method unfreeze = findMethod(registry.getClass(), "unfreeze", boolean.class);
+                Field frozen = findFrozenField(registry.getClass());
 
-                if (unfreeze == null)
+                if (frozen == null)
                 {
                     continue;
                 }
 
-                unfreeze.setAccessible(true);
-                unfreeze.invoke(registry, false);
-                result.add(registry);
+                frozen.setAccessible(true);
+                boolean wasFrozen = frozen.getBoolean(registry);
+
+                if (wasFrozen)
+                {
+                    frozen.setBoolean(registry, false);
+                }
+
+                unique.put(registry, new RegistryState(registry, frozen, wasFrozen));
             }
             catch (ReflectiveOperationException | RuntimeException ignored)
             {
-                /* Non-registry fields and registries without the NeoForge bridge
-                 * are intentionally skipped. Required registries will otherwise
-                 * fail loudly at their original registration call. */
+                /* Non-registry constants are expected here. */
             }
         }
 
-        return result;
+        if (unique.isEmpty())
+        {
+            throw new IllegalStateException("Could not access NeoForge vanilla registry frozen state");
+        }
+
+        return new ArrayList<>(unique.values());
     }
 
-    private static void refreezeVanillaRegistries(List<Object> registries)
+    private static void refreezeVanillaRegistries(List<RegistryState> states)
     {
-        Collections.reverse(registries);
+        Collections.reverse(states);
 
-        for (Object registry : registries)
+        for (RegistryState state : states)
         {
+            if (!state.wasFrozen())
+            {
+                continue;
+            }
+
             try
             {
-                Method freeze = findMethod(registry.getClass(), "freeze");
+                Method freeze = findMethod(state.registry().getClass(), "freeze");
 
                 if (freeze != null)
                 {
                     freeze.setAccessible(true);
-                    freeze.invoke(registry);
+                    freeze.invoke(state.registry());
+                }
+                else
+                {
+                    state.frozenField().setBoolean(state.registry(), true);
                 }
             }
             catch (ReflectiveOperationException | RuntimeException exception)
@@ -121,6 +147,33 @@ public final class BlockbusterNeoForge
                 throw new IllegalStateException("Failed to refreeze a NeoForge registry after BlockBuster registration", exception);
             }
         }
+    }
+
+    private static Field findFrozenField(Class<?> type)
+    {
+        for (String name : new String[] {"frozen", "field_33085", "f_205845_"})
+        {
+            Class<?> current = type;
+
+            while (current != null)
+            {
+                try
+                {
+                    Field field = current.getDeclaredField(name);
+
+                    if (field.getType() == boolean.class)
+                    {
+                        return field;
+                    }
+                }
+                catch (NoSuchFieldException ignored)
+                {}
+
+                current = current.getSuperclass();
+            }
+        }
+
+        return null;
     }
 
     private static Method findMethod(Class<?> type, String name, Class<?>... parameterTypes)
@@ -144,4 +197,4 @@ public final class BlockbusterNeoForge
 }
 ''', encoding="utf-8")
 
-print("Applied NeoForge startup registry bridge and disabled the stale particle injector.")
+print("Applied namespace-independent NeoForge registry bridge and optional client mixins.")
