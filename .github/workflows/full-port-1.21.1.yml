@@ -38,6 +38,8 @@ jobs:
           python .github/fix_remaining_runtime_gaps.py
           python .github/fix_modded_entity_state_adapters.py
           python .github/fix_global_entity_adapter_api.py
+          cat .github/fix_modded_entity_adapter_runtime_v2.py.b64.* | base64 --decode > /tmp/fix_modded_entity_adapter_runtime_v2.py
+          python /tmp/fix_modded_entity_adapter_runtime_v2.py
       - name: Build migrated source
         run: |
           chmod +x gradlew
