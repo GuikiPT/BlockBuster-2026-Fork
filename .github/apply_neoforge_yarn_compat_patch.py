@@ -99,4 +99,21 @@ elif neoforge_send not in swipe_text:
 
 swipe.write_text(swipe_text, encoding="utf-8")
 
+# The layered NeoForge/Yarn workspace keeps KeyMapping's runtime field under
+# Mojang's name MAP even though the source class itself is exposed with Yarn's
+# KeyBinding name. The Mixin annotation processor cannot remap the Yarn literal
+# KEY_TO_BINDINGS in this hybrid namespace, so target the actual NeoForge field
+# name directly and explicitly disable remapping for this accessor.
+key_accessor = root / "src/client/java/mchorse/blockbuster/mixin/client/KeyBindingKeyMapAccessor.java"
+key_accessor_text = key_accessor.read_text(encoding="utf-8")
+yarn_accessor = '    @Accessor("KEY_TO_BINDINGS")'
+neoforge_accessor = '    @Accessor(value = "MAP", remap = false)'
+
+if yarn_accessor in key_accessor_text:
+    key_accessor_text = key_accessor_text.replace(yarn_accessor, neoforge_accessor, 1)
+elif neoforge_accessor not in key_accessor_text:
+    raise SystemExit("Expected KeyBinding KEY_TO_BINDINGS accessor was not found")
+
+key_accessor.write_text(key_accessor_text, encoding="utf-8")
+
 print("Applied Architectury's NeoForge Yarn patch and BlockBuster compatibility fixes.")
