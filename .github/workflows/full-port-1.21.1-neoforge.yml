@@ -40,81 +40,11 @@ jobs:
           python .github/fix_remaining_runtime_gaps.py
           python .github/fix_modded_entity_state_adapters.py
           python .github/fix_global_entity_adapter_api.py
-      - name: Prepare NeoForge-safe Yarn mappings
-        run: |
-          python - <<'PY'
-          from io import BytesIO
-          from pathlib import Path
-          from urllib.request import Request, urlopen
-          from zipfile import ZIP_DEFLATED, ZipFile
-
-          url = "https://maven.fabricmc.net/net/fabricmc/yarn/1.21.1%2Bbuild.3/yarn-1.21.1%2Bbuild.3-v2.jar"
-          request = Request(url, headers={"User-Agent": "BlockBuster-NeoForge-CI"})
-          data = urlopen(request, timeout=120).read()
-
-          with ZipFile(BytesIO(data), "r") as source:
-              entries = {info.filename: source.read(info.filename) for info in source.infolist()}
-
-          mapping_name = "mappings/mappings.tiny"
-          text = entries[mapping_name].decode("utf-8")
-          lines = text.splitlines()
-
-          injections = {
-              "net/minecraft/class_1496": "\tm\t()Lnet/minecraft/class_1263;\tgetInventory\tneoforge$getInventory",
-              "net/minecraft/class_329": "\tm\t(Lnet/minecraft/class_332;Lnet/minecraft/class_9779;)V\trenderHotbar\tneoforge$renderHotbar",
-          }
-          inserted = set()
-          output = []
-          current = None
-
-          for line in lines:
-              if line.startswith("c\t"):
-                  if current in injections and current not in inserted:
-                      output.append(injections[current])
-                      inserted.add(current)
-                  fields = line.split("\t")
-                  current = fields[1]
-              output.append(line)
-
-          if current in injections and current not in inserted:
-              output.append(injections[current])
-              inserted.add(current)
-
-          missing = set(injections) - inserted
-          if missing:
-              raise SystemExit(f"Could not patch Yarn class mappings: {sorted(missing)}")
-
-          entries[mapping_name] = ("\n".join(output) + "\n").encode("utf-8")
-          target = Path("generated/yarn-1.21.1-build.3-neoforge-fixed.jar")
-          target.parent.mkdir(parents=True, exist_ok=True)
-          with ZipFile(target, "w", ZIP_DEFLATED) as destination:
-              for name, payload in entries.items():
-                  destination.writestr(name, payload)
-
-          print(f"Wrote {target} with NeoForge injected-method conflict mappings")
-          PY
       - name: Convert generated source to NeoForge workspace
         run: |
           python .github/migrate_to_neoforge.py
           python .github/fix_neoforge_compatibility_shims.py
-          python - <<'PY'
-          from pathlib import Path
-          path = Path("build.gradle")
-          text = path.read_text(encoding="utf-8")
-          text = text.replace(
-              '    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"',
-              '    mappings files("generated/yarn-1.21.1-build.3-neoforge-fixed.jar")',
-          )
-          text = text.replace(
-              '    compileOnly "org.sinytra:forgified-fabric-loader:${project.ffl_version}"',
-              '    implementation "org.sinytra:forgified-fabric-loader:${project.ffl_version}"',
-          )
-          text = text.replace(
-              '    modCompileOnly "maven.modrinth:iris:${project.iris_version}"',
-              '    modCompileOnly "maven.modrinth:YL57xq9U:oXIoDcGE"',
-          )
-          path.write_text(text, encoding="utf-8")
-          PY
+          python .github/apply_neoforge_yarn_compat_patch.py
       - name: Build NeoForge source
         run: |
           chmod +x gradlew
@@ -139,5 +69,4 @@ jobs:
             build.gradle
             gradle.properties
             settings.gradle
-            generated/*.jar
           if-no-files-found: ignore
