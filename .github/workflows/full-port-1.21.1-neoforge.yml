@@ -3,7 +3,7 @@ name: Full Minecraft 1.21.1 NeoForge port build
 on:
   push:
     branches:
-      - gpt-1.21.1-neoforge-port
+      - 1.21.1-neoforge
   workflow_dispatch:
 
 jobs:
