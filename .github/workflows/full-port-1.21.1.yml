@@ -3,7 +3,7 @@ name: Full Minecraft 1.21.1 port build
 on:
   push:
     branches:
-      - gpt-1.21.1-full-port
+      - 1.21.1-fabric
   workflow_dispatch:
 
 jobs:
