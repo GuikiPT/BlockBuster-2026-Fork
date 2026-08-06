@@ -3,7 +3,7 @@ name: Minecraft 1.21.1 migration build
 on:
   push:
     branches:
-      - gpt-1.21.1-migration
+      - 1.21.1-fabric-port
   workflow_dispatch:
 
 jobs:
